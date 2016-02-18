@@ -44,6 +44,8 @@
 			                <goal>shade</goal>
 			            </goals>
 			            <configuration>
+			            	<shadeTestJar>false</shadeTestJar>
+              				<shadedArtifactAttached>false</shadedArtifactAttached>
                             <minimizeJar>false</minimizeJar>
                             <relocations>
                             </relocations>
