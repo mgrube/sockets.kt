@@ -1,8 +1,0 @@
-name: SocketAPI
-version: 1.6.3
-main: fr.rhaz.socketapi.Bukkit
-author: Hazae41
-commands:
-    sock:
-        description: "Main Command"
-        aliases: [bukkitsock]
