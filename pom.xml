@@ -6,13 +6,7 @@
   <name>SocketAPI</name>
   <description>Socket Manager API</description>
   <url>https://github.com/RHazDev/SocketAPI</url>
-  
-  <licenses>
-  <license>
-    <name>MIT License</name>
-    <url>https://opensource.org/licenses/MIT</url>
-  </license>
-</licenses>
+
   <repositories>
 	    <repository>
 	        <id>bungeecord-repo</id>
