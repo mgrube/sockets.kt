@@ -87,6 +87,10 @@ public class SocketClient implements Runnable {
 		Security.level = security;
 		enabled.set(true);
 	}
+	
+	public void start() {
+		Data.app.run(this);
+	}
 
 	public void run() {
 		while (enabled.get()) {

@@ -26,7 +26,7 @@ public class SocketServer implements Runnable {
 		}
 	}
 
-	public SocketServer(String name, SocketServerApp app, int port, int security) {
+	public SocketServer(SocketServerApp app, String name, int port, int security) {
 		try {
 			Data.set(name, port, app, security);
 		} catch (IOException e) {
