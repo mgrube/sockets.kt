@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.HashMap;
@@ -13,17 +14,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.SecretKey;
 
-import com.google.gson.JsonSyntaxException;
-
 import fr.rhaz.socketapi.SocketAPI;
 import fr.rhaz.socketapi.utils.AES;
+import fr.rhaz.socketapi.utils.Message;
 import fr.rhaz.socketapi.utils.RSA;
 
 public class SocketMessenger implements Runnable {
+	
 	private AtomicBoolean handshaked = new AtomicBoolean(false);
-	private String RSA_key = "";
-	private String AES_key = "";
-	private String message = "";
+	
+	private Message mRSA = new Message();
+	private Message mAES = new Message();
+	private Message message = new Message();
+	
 	private Data Data = new Data();
 	private Security Security = new Security();
 	private IO IO = new IO();
@@ -73,12 +76,15 @@ public class SocketMessenger implements Runnable {
 		Data.server = socketServer;
 		Security.level = security; // Setting security level
 		Security.reset(); // Reset security data
+		
 		if (Data.server.isEnabled() && isConnectedAndOpened()) {
 			try {
+				
 				IO.set(socket);
-				if (Security.level == 0) {
+				
+				if (Security.level == 0) 
 					writeJSON("SocketAPI", "handshake");
-				}
+				
 				if (Security.level == 1) {
 					Data.server.Data.app.log("Self AES: " + AES.toString(Security.Self.AES));
 					IO.writer.println(AES.toString(Security.Self.AES));
@@ -98,82 +104,122 @@ public class SocketMessenger implements Runnable {
 	@Override
 	public void run() {
 		while (Data.server.isEnabled() && isConnectedAndOpened()) { // While connected
+			
 			try {
-				String read = IO.reader.readLine();
-				if (read == null)
-					close(); // If end of stream, close
-				else {
-					if (Security.level >= 2 && Security.Target.RSA == null) { // Is RSA enabled? Do we received
-																				// the RSA key?
-
-						if (!read.equals("--end--"))
-							RSA_key += read; // Is the message fully received?
-
-						else { // Yay, we received the RSA key
-							Security.Target.RSA = RSA.loadPublicKey(RSA_key); // Convert it to a PublicKey
-																					// object
-							// Now we send our AES key encrypted with RSA
-							IO.writer.println(RSA.encrypt(AES.toString(Security.Self.AES),
-									Security.Target.RSA));
-							IO.writer.println("--end--");
-							IO.writer.flush();
+				loop:{
+				
+					// Read the line
+					String read = IO.reader.readLine();
+					Data.server.Data.app.log("read: " + read);
+					
+					// If end of stream, close
+					if (read == null) 
+						break; 
+				
+					rsa:{
+						
+						// Is RSA enabled? Do we received the RSA key?
+						if (!(Security.level >= 2 && Security.Target.RSA == null)) 
+							break rsa; 
+						
+						// Is the message fully received?
+						if (!read.equals("--end--")) { 
+							mRSA.add(read); // Add this line
+							break loop; // Read another line
 						}
-					} else if (Security.level >= 1 && Security.Target.AES == null) {
-
-						if (!read.equals("--end--"))
-							AES_key += read;
-
-						else {
-							if (Security.level == 1) {
-								Data.server.Data.app.log("Target AES: " + AES_key);
-								Security.Target.AES = AES.toKey(AES_key);
-							}
-							if (Security.level == 2) {
-								Security.Target.AES = AES
-										.toKey(RSA.decrypt(AES_key, Security.Self.RSA.getPrivate()));
-							}
-							writeJSON("SocketAPI", "handshake");
-						}
-					} else {
-						String decrypted = "";
-						if (Security.level == 0)
-							decrypted = read;
-						if (Security.level >= 1)
-							decrypted = AES.decrypt(read, Security.Self.AES);
-						Data.server.Data.app.log("<- " + read);
-						Data.server.Data.app.log("<- (" + decrypted + ")");
-						if (decrypted != null && !decrypted.isEmpty()) {
-
-							if (!decrypted.equals("--end--"))
-								message += decrypted;
-
-							else {
-								if (message != null && !message.isEmpty()) {
-									try {
-										@SuppressWarnings("unchecked")
-										Map<String, String> map = SocketAPI.gson().fromJson(message, Map.class);
-										if (map.get("channel").equals("SocketAPI")) { // Is it our channel?
-											if (map.get("data").equals("handshake")) {
-												handshaked.set(true);
-												Data.name = map.get("name");
-												Data.server.getApp().onHandshake(this, Data.name);
-												writeJSON("SocketAPI", "handshaked");
-											}
-										} else
-											Data.server.getApp().onJSON(this, map);
-									} catch (JsonSyntaxException e) {
-									}
-								}
-								message = "";
-							}
-						}
+						
+						String key = mRSA.egr();
+						// Yay, we received the RSA key
+						// Convert it to a PublicKey object
+						Security.Target.RSA = RSA.loadPublicKey(key); 
+						
+						// Now we send our AES key encrypted with target RSA
+						String aes = AES.toString(Security.Self.AES);
+						String rsa = RSA.encrypt(aes, Security.Target.RSA);
+						
+						IO.writer.println(rsa);
+						IO.writer.println("--end--");
+						IO.writer.flush();
+						break loop; // Wait until we receive another message
 					}
+					
+					aes:{
+						
+						// Is AES enabled? Do we already received AES?
+						if (!(Security.level >= 1 && Security.Target.AES == null))
+							break aes;
+	
+						// Is it the end of the key?
+						if (!read.equals("--end--")) {
+							mAES.add(read); // Add this line
+							break loop; // Read another line
+						}
+						
+						String key = mAES.egr();
+						
+						Data.server.Data.app.log("Target AES: " + key);
+						
+						// Received AES key encrypted in RSA
+						if(Security.level == 2) 
+							key = RSA.decrypt(key, Security.Self.RSA.getPrivate());
+
+						// We save it
+						Security.Target.AES = AES.toKey(key);
+						
+						// Now we handshake
+						writeJSON("SocketAPI", "handshake");
+						break loop; // Wait until we receive another message
+						
+					}
+					
+					// Is the line encrypted in AES?
+					if (Security.level >= 1)
+						read = AES.decrypt(read, Security.Self.AES);
+					
+					Data.server.Data.app.log("<- " + read);
+					
+					// If line is null or empty, read another
+					if (read == null || read.isEmpty())
+						break loop;
+
+					// Is message fully received?
+					if (!read.equals("--end--")) {
+						message.add(read); // Add line
+						break loop; // Read another line
+					}
+					
+					// Convert message to an object
+					Map<String, String> map = message.emr();
+					
+					handshake:{
+						
+						// Is it our channel?
+						if (!map.get("channel").equals("SocketAPI"))
+							break handshake;
+							
+						// Is the message a handshake?
+						if (!map.get("data").equals("handshake"))
+							break handshake;
+								
+						handshaked.set(true);
+						Data.name = map.get("name");
+						
+						Data.server.getApp().onHandshake(this, Data.name);
+						writeJSON("SocketAPI", "handshaked");
+						break loop; // Wait until we receive another message
+					}
+					
+					// Send the object to the app
+					Data.server.getApp().onJSON(this, map);
+					
 				}
-			} catch (Exception e) {
-				if (e.getClass().getSimpleName().equals("SocketException"))
-					close();
+			
+				Thread.sleep(100); // Wait 100 milliseconds before reading another line
+			} catch (IOException | GeneralSecurityException | InterruptedException e) {
+				break;
 			}
 		}
+		close();
 	}
 
 	public SocketServer getServer() {
@@ -194,35 +240,41 @@ public class SocketMessenger implements Runnable {
 
 	public void writeJSON(String channel, String data) {
 		try {
+			
 			HashMap<String, String> hashmap = new HashMap<>();
 			hashmap.put("name", Data.server.Data.name);
 			hashmap.put("channel", channel);
 			hashmap.put("data", data);
+			
 			String json = SocketAPI.gson().toJson(hashmap);
 			write(json);
-		} catch (NullPointerException e) {
-		}
+			
+		} catch (NullPointerException e) {}
 	}
 
 	private void write(String data) {
 		try {
+			
 			String[] split = SocketAPI.split(data, 20);
-			if (Security.level == 0) {
-				for (String str : split)
-					IO.writer.println(str);
-				IO.writer.println("--end--");
+			
+			for (String str : split) {
+				
+				if(Security.level >= 1)
+					str = AES.encrypt(str, Security.Target.AES);
+				
+				IO.writer.println(str);
+				
 			}
-			if (Security.level >= 1) {
-				for (String str : split) {
-					Data.server.Data.app.log("-> " + AES.encrypt(str, Security.Target.AES));
-					IO.writer.println(AES.encrypt(str, Security.Target.AES));
-				}
-				Data.server.Data.app.log("-> " + AES.encrypt("--end--", Security.Target.AES));
-				IO.writer.println(AES.encrypt("--end--", Security.Target.AES));
-			}
+			
+			String end = "--end--";
+			
+			if(Security.level >= 1)
+				end = AES.encrypt(end, Security.Target.AES);
+			
+			IO.writer.println(end);
 			IO.writer.flush();
-		} catch (NullPointerException e) {
-		}
+			
+		} catch (NullPointerException e) {}
 	}
 
 	public IOException close() {

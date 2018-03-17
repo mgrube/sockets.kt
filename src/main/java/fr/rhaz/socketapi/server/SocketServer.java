@@ -74,13 +74,16 @@ public class SocketServer implements Runnable {
 				Socket socket = Data.server.accept(); // Accept new connection
 				socket.setTcpNoDelay(true); // Set socket option
 
-				SocketMessenger messenger = new SocketMessenger(this, socket, Data.security); // Create a new
-																								// messenger for
-																								// this socket
+				SocketMessenger messenger = new SocketMessenger(this, socket, Data.security); // Create a new messenger for this socket
 				Data.messengers.add(messenger); // Add this messenger to the list
 				Data.app.onConnect(messenger); // Trigger onConnect event
 				Data.app.run(messenger); // Run the messenger
-			} catch (IOException e) {
+			} catch (IOException e) {}
+			try {
+				Thread.sleep(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+				break;
 			}
 		}
 	}
