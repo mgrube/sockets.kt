@@ -1,8 +1,8 @@
-package fr.rhaz.socketapi.utils;
+package fr.rhaz.sockets.utils;
 
 import java.util.Map;
 
-import fr.rhaz.socketapi.SocketAPI;
+import fr.rhaz.sockets.Sockets;
 
 public class Message {
 	
@@ -41,7 +41,7 @@ public class Message {
 	@SuppressWarnings("unchecked")
 	public Map<String, String> map(){
 		if(!ended) throw new IllegalStateException();
-		return SocketAPI.gson().fromJson(msg, Map.class);
+		return Sockets.gson().fromJson(msg, Map.class);
 	}
 	
 	public String egr() {

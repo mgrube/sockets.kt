@@ -1,4 +1,4 @@
-package fr.rhaz.socketapi.server;
+package fr.rhaz.sockets.server;
 
 import java.util.Map;
 

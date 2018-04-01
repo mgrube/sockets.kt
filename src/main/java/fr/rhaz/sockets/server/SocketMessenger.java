@@ -1,4 +1,4 @@
-package fr.rhaz.socketapi.server;
+package fr.rhaz.sockets.server;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,10 +14,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.SecretKey;
 
-import fr.rhaz.socketapi.SocketAPI;
-import fr.rhaz.socketapi.utils.AES;
-import fr.rhaz.socketapi.utils.Message;
-import fr.rhaz.socketapi.utils.RSA;
+import fr.rhaz.sockets.Sockets;
+import fr.rhaz.sockets.utils.AES;
+import fr.rhaz.sockets.utils.Message;
+import fr.rhaz.sockets.utils.RSA;
 
 public class SocketMessenger implements Runnable {
 	
@@ -246,7 +246,7 @@ public class SocketMessenger implements Runnable {
 			hashmap.put("channel", channel);
 			hashmap.put("data", data);
 			
-			String json = SocketAPI.gson().toJson(hashmap);
+			String json = Sockets.gson().toJson(hashmap);
 			write(json);
 			
 		} catch (NullPointerException e) {}
@@ -255,7 +255,7 @@ public class SocketMessenger implements Runnable {
 	private void write(String data) {
 		try {
 			
-			String[] split = SocketAPI.split(data, 20);
+			String[] split = Sockets.split(data, 20);
 			
 			for (String str : split) {
 				

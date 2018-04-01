@@ -1,8 +1,8 @@
-package fr.rhaz.socketapi;
+package fr.rhaz.sockets;
 
 import com.google.gson.Gson;
 
-public class SocketAPI {
+public class Sockets {
 	public static Gson gson = new Gson();
 
 	public static Gson gson() {
@@ -13,7 +13,7 @@ public class SocketAPI {
 		return input.split("(?<=\\G.{" + max + "})");
 	}
 
-	public static SocketAPI instance() {
-		return new SocketAPI();
+	public static Sockets instance() {
+		return new Sockets();
 	}
 }

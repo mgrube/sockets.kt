@@ -1,4 +1,4 @@
-package fr.rhaz.socketapi.utils;
+package fr.rhaz.sockets.utils;
 
 import java.security.NoSuchAlgorithmException;
 
