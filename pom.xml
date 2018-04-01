@@ -4,7 +4,7 @@
   <artifactId>sockets</artifactId>
   <version>2.2.2</version>
   <name>RHazSockets</name>
-  <description>Socket Manager API</description>
+  <description>Socket Managing API</description>
   <url>https://github.com/RHazDev/RHazSockets</url>
 	
 	<build>
