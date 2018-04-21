@@ -266,18 +266,23 @@ public class SocketClient implements Runnable {
 	}
 
 	public void writeJSON(String channel, String data) {
+		HashMap<String,Object> map = new HashMap<String,Object>();
+		map.put("data", data);
+		writeJSON(channel, map);
+	}
+	
+	public void writeJSON(String channel, Map<String,Object> data) {
 		try {
-			HashMap<String, String> hashmap = new HashMap<>();
-			hashmap.put("channel", channel);
-			hashmap.put("data", data);
-			hashmap.put("name", Data.name);
-			String json = Sockets.gson().toJson(hashmap);
+			
+			data.put("name", Data.name);
+			data.put("channel", channel);
+			
+			String json = Sockets.gson().toJson(data);
 			write(json);
-		} catch (NullPointerException e) {
-		}
+		}catch(NullPointerException ex) {}
 	}
 
-	private void write(String data) {
+	public void write(String data) {
 		try {
 			
 			String[] split = Sockets.split(data, 20);

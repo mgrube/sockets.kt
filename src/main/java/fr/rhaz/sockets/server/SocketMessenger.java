@@ -10,6 +10,7 @@ import java.security.KeyPair;
 import java.security.PublicKey;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.SecretKey;
@@ -239,20 +240,23 @@ public class SocketMessenger implements Runnable {
 	}
 
 	public void writeJSON(String channel, String data) {
+		HashMap<String,Object> map = new HashMap<String,Object>();
+		map.put("data", data);
+		writeJSON(channel, map);
+	}
+	
+	public void writeJSON(String channel, Map<String,Object> data) {
 		try {
 			
-			HashMap<String, String> hashmap = new HashMap<>();
-			hashmap.put("name", Data.server.Data.name);
-			hashmap.put("channel", channel);
-			hashmap.put("data", data);
+			data.put("name", Data.server.Data.name);
+			data.put("channel", channel);
 			
-			String json = Sockets.gson().toJson(hashmap);
+			String json = Sockets.gson().toJson(data);
 			write(json);
-			
-		} catch (NullPointerException e) {}
+		}catch(NullPointerException ex) {}
 	}
 
-	private void write(String data) {
+	public void write(String data) {
 		try {
 			
 			String[] split = Sockets.split(data, 20);

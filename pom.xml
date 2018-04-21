@@ -2,10 +2,22 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>fr.rhaz</groupId>
   <artifactId>sockets</artifactId>
-  <version>2.2.2</version>
+  <version>2.2.3</version>
   <name>RHazSockets</name>
   <description>Socket Managing API</description>
   <url>https://github.com/RHazDev/RHazSockets</url>
+	
+	<properties>
+    <!-- github server corresponds to entry in ~/.m2/settings.xml -->
+    <github.global.server>github</github.global.server>
+</properties>
+	<distributionManagement>
+    <repository>
+        <id>internal.repo</id>
+        <name>Temporary Staging Repository</name>
+        <url>file://${project.build.directory}/mvn-repo</url>
+    </repository>
+</distributionManagement>
 	
 	<build>
 	    <resources>
@@ -64,6 +76,39 @@
 			        </execution>
 			    </executions>
 			</plugin>
+			
+			<plugin>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <version>2.8.1</version>
+        <configuration>
+            <altDeploymentRepository>internal.repo::default::file://${project.build.directory}/mvn-repo</altDeploymentRepository>
+        </configuration>
+    </plugin>
+    <plugin>
+            <groupId>com.github.github</groupId>
+            <artifactId>site-maven-plugin</artifactId>
+            <version>0.11</version>
+            <configuration>
+                <message>Maven artifacts for ${project.version}</message>  <!-- git commit message -->
+                <noJekyll>false</noJekyll>                                  <!-- disable webpage processing -->
+                <outputDirectory>${project.build.directory}/mvn-repo</outputDirectory> <!-- matches distribution management repository url above -->
+                <branch>refs/heads/master</branch>                       <!-- remote branch name -->
+                <includes><include>**/*</include></includes>
+                <force>false</force>
+                <merge>true</merge>
+                <repositoryName>RHaz-Maven</repositoryName>      <!-- github repo name -->
+                <repositoryOwner>RHazDev</repositoryOwner>    <!-- github username  -->
+            </configuration>
+            <executions>
+              <!-- run site-maven-plugin's 'site' target as part of the build's normal 'deploy' phase -->
+              <execution>
+                <goals>
+                  <goal>site</goal>
+                </goals>
+                <phase>deploy</phase>
+              </execution>
+            </executions>
+        </plugin>
       
       <plugin>
   <groupId>org.apache.maven.plugins</groupId>
