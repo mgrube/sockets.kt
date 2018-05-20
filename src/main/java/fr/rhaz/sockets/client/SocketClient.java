@@ -14,12 +14,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.SecretKey;
 
+import fr.rhaz.sockets.SocketWriter;
 import fr.rhaz.sockets.Sockets;
 import fr.rhaz.sockets.utils.AES;
 import fr.rhaz.sockets.utils.Message;
 import fr.rhaz.sockets.utils.RSA;
 
-public class SocketClient implements Runnable {
+public class SocketClient implements Runnable, SocketWriter {
 	
 	private AtomicBoolean enabled = new AtomicBoolean(false);
 	private AtomicBoolean handshaked = new AtomicBoolean(false);
@@ -202,7 +203,7 @@ public class SocketClient implements Runnable {
 					}
 					
 					// Convert message to an object
-					Map<String, String> map = message.emr();
+					Map<String, Object> map = message.emr();
 					
 					handshake:{
 						
@@ -282,7 +283,7 @@ public class SocketClient implements Runnable {
 		}catch(NullPointerException ex) {}
 	}
 
-	public void write(String data) {
+	public synchronized void write(String data) {
 		try {
 			
 			String[] split = Sockets.split(data, 20);
@@ -304,7 +305,9 @@ public class SocketClient implements Runnable {
 			IO.writer.println(end);
 			IO.writer.flush();
 			
-		} catch (NullPointerException e) {}
+			Thread.sleep(100);
+			
+		} catch (NullPointerException | InterruptedException e) {}
 	}
 
 	public IOException close() {

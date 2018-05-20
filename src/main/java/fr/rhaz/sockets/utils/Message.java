@@ -39,7 +39,7 @@ public class Message {
 	}
 	
 	@SuppressWarnings("unchecked")
-	public Map<String, String> map(){
+	public Map<String, Object> map(){
 		if(!ended) throw new IllegalStateException();
 		return Sockets.gson().fromJson(msg, Map.class);
 	}
@@ -51,9 +51,9 @@ public class Message {
 		return msg;
 	}
 	
-	public Map<String, String> emr(){
+	public Map<String, Object> emr(){
 		end();
-		Map<String, String> map = map();
+		Map<String, Object> map = map();
 		reset();
 		return map;
 	}

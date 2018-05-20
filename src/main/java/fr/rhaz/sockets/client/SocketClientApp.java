@@ -11,7 +11,7 @@ public interface SocketClientApp {
 
 	public void onHandshake(SocketClient client);
 
-	public void onJSON(SocketClient client, Map<String, String> map);
+	public void onJSON(SocketClient client, Map<String, Object> map);
 	
 	public void run(SocketClient client);
 }

@@ -15,12 +15,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.SecretKey;
 
+import fr.rhaz.sockets.SocketWriter;
 import fr.rhaz.sockets.Sockets;
 import fr.rhaz.sockets.utils.AES;
 import fr.rhaz.sockets.utils.Message;
 import fr.rhaz.sockets.utils.RSA;
 
-public class SocketMessenger implements Runnable {
+public class SocketMessenger implements Runnable, SocketWriter {
 	
 	private AtomicBoolean handshaked = new AtomicBoolean(false);
 	
@@ -190,7 +191,7 @@ public class SocketMessenger implements Runnable {
 					}
 					
 					// Convert message to an object
-					Map<String, String> map = message.emr();
+					Map<String, Object> map = message.emr();
 					
 					handshake:{
 						
@@ -203,7 +204,11 @@ public class SocketMessenger implements Runnable {
 							break handshake;
 								
 						handshaked.set(true);
-						Data.name = map.get("name");
+						
+						if(!(map.get("name") instanceof String))
+							break handshake;
+						
+						Data.name = (String) map.get("name");
 						
 						Data.server.getApp().onHandshake(this, Data.name);
 						writeJSON("SocketAPI", "handshaked");
@@ -256,7 +261,7 @@ public class SocketMessenger implements Runnable {
 		}catch(NullPointerException ex) {}
 	}
 
-	public void write(String data) {
+	public synchronized void write(String data) {
 		try {
 			
 			String[] split = Sockets.split(data, 20);
@@ -278,7 +283,9 @@ public class SocketMessenger implements Runnable {
 			IO.writer.println(end);
 			IO.writer.flush();
 			
-		} catch (NullPointerException e) {}
+			Thread.sleep(100);
+			
+		} catch (NullPointerException | InterruptedException e) {}
 	}
 
 	public IOException close() {

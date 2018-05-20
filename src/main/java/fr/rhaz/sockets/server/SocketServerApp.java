@@ -9,7 +9,7 @@ public interface SocketServerApp {
 
 	public void onHandshake(SocketMessenger mess, String name);
 
-	public void onJSON(SocketMessenger mess, Map<String, String> map);
+	public void onJSON(SocketMessenger mess, Map<String, Object> map);
 
 	public void onDisconnect(SocketMessenger mess);
 
