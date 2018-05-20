@@ -300,6 +300,10 @@ public class SocketMessenger implements Runnable, SocketWriter {
 		}
 		return null;
 	}
+	
+	public boolean isEnabled() {
+		return Data.server.isEnabled();
+	}
 
 	public Socket getSocket() {
 		return Data.socket;
