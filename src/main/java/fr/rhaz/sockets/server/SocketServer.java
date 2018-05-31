@@ -73,6 +73,7 @@ public class SocketServer implements Runnable {
 			try {
 				Socket socket = Data.server.accept(); // Accept new connection
 				socket.setTcpNoDelay(true); // Set socket option
+				socket.setPerformancePreferences(0, 1, 2);
 
 				SocketMessenger messenger = new SocketMessenger(this, socket, Data.security); // Create a new messenger for this socket
 				Data.messengers.add(messenger); // Add this messenger to the list

@@ -98,6 +98,7 @@ public class SocketClient implements Runnable, SocketWriter {
 			try {
 				Data.socket = new Socket(Data.host, Data.port); // Connection
 				Data.socket.setTcpNoDelay(true); // Socket option
+				Data.socket.setPerformancePreferences(0, 1, 2);
 
 				Data.app.onConnect(this); // Trigger onConnect event
 				Security.reset(); // Reset security data
