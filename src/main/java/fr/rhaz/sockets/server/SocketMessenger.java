@@ -8,9 +8,6 @@ import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.PublicKey;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.SecretKey;
@@ -18,6 +15,7 @@ import javax.crypto.SecretKey;
 import fr.rhaz.sockets.SocketWriter;
 import fr.rhaz.sockets.Sockets;
 import fr.rhaz.sockets.utils.AES;
+import fr.rhaz.sockets.utils.JSONMap;
 import fr.rhaz.sockets.utils.Message;
 import fr.rhaz.sockets.utils.RSA;
 
@@ -34,7 +32,6 @@ public class SocketMessenger implements Runnable, SocketWriter {
 	private IO IO = new IO();
 
 	public class Data {
-		private String name;
 		private Socket socket;
 		private SocketServer server;
 	}
@@ -85,7 +82,7 @@ public class SocketMessenger implements Runnable, SocketWriter {
 				IO.set(socket);
 				
 				if (Security.level == 0) 
-					writeJSON("SocketAPI", "handshake");
+					write("SocketAPI", "handshake");
 				
 				if (Security.level == 1) {
 					Data.server.Data.app.log("Self AES: " + AES.toString(Security.Self.AES));
@@ -169,7 +166,7 @@ public class SocketMessenger implements Runnable, SocketWriter {
 						Security.Target.AES = AES.toKey(key);
 						
 						// Now we handshake
-						writeJSON("SocketAPI", "handshake");
+						write("SocketAPI", "handshake");
 						break loop; // Wait until we receive another message
 						
 					}
@@ -191,7 +188,10 @@ public class SocketMessenger implements Runnable, SocketWriter {
 					}
 					
 					// Convert message to an object
-					Map<String, Object> map = message.emr();
+					JSONMap map = message.emr();
+					
+					if(!map.get("password").equals(Data.server.Data.password))
+						break loop;
 					
 					handshake:{
 						
@@ -208,15 +208,13 @@ public class SocketMessenger implements Runnable, SocketWriter {
 						if(!(map.get("name") instanceof String))
 							break handshake;
 						
-						Data.name = (String) map.get("name");
-						
-						Data.server.getApp().onHandshake(this, Data.name);
-						writeJSON("SocketAPI", "handshaked");
+						Data.server.getApp().onHandshake(this, map.getExtraString("name"));
+						write("SocketAPI", "handshaked");
 						break loop; // Wait until we receive another message
 					}
 					
 					// Send the object to the app
-					Data.server.getApp().onJSON(this, map);
+					Data.server.getApp().onMessage(this, new JSONMap(map));
 					
 				}
 			
@@ -240,21 +238,16 @@ public class SocketMessenger implements Runnable, SocketWriter {
 		return handshaked.get();
 	}
 
-	public String getName() {
-		return Data.name;
-	}
-
-	public void writeJSON(String channel, String data) {
-		HashMap<String,Object> map = new HashMap<String,Object>();
-		map.put("data", data);
-		writeJSON(channel, map);
+	public void write(String channel, String data) {
+		write(channel, new JSONMap("data", data));
 	}
 	
-	public void writeJSON(String channel, Map<String,Object> data) {
+	public void write(String channel, JSONMap data) {
 		try {
 			
 			data.put("name", Data.server.Data.name);
 			data.put("channel", channel);
+			data.put("password", Data.server.Data.password);
 			
 			String json = Sockets.gson().toJson(data);
 			write(json);

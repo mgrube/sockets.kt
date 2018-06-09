@@ -15,22 +15,23 @@ public class SocketServer implements Runnable {
 		public int security;
 		public ArrayList<SocketMessenger> messengers;
 		public String name;
+		public String password;
 
-		public void set(String name, int port, SocketServerApp app, int security) throws IOException {
+		public void set(String name, int port, SocketServerApp app, int security, String password) throws IOException {
 			Data.name = name;
 			Data.port = port;
 			Data.app = app;
 			Data.security = security;
 			Data.server = new ServerSocket();
 			Data.messengers = new ArrayList<>();
+			Data.password = password;
 		}
 	}
 
-	public SocketServer(SocketServerApp app, String name, int port, int security) {
+	public SocketServer(SocketServerApp app, String name, int port, int security, String password) {
 		try {
-			Data.set(name, port, app, security);
-		} catch (IOException e) {
-		}
+			Data.set(name, port, app, security, password);
+		} catch (IOException e) {}
 	}
 
 	public IOException start() {

@@ -33,4 +33,26 @@ public class JSONMap extends HashMap<String,Object> {
 		}
 	}
 	
+	public String getChannel(){
+		return getExtraString("channel");
+	}
+	
+	@SuppressWarnings("unchecked")
+	public <T> T getExtra(String key, Class<T> type) {
+		return (T) get(key);
+	}
+	
+	public String getExtraString(String key) {
+		return getExtra(key, String.class);
+	}
+	
+	public int getExtraInt(String key) {
+		return getExtra(key, int.class);
+	}
+	
+	@SuppressWarnings("unchecked")
+	public Map<String, Object> getExtraMap(String key) {
+		return getExtra(key, Map.class);
+	}
+	
 }

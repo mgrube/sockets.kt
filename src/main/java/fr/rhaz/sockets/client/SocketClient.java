@@ -8,7 +8,6 @@ import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.PublicKey;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -17,6 +16,7 @@ import javax.crypto.SecretKey;
 import fr.rhaz.sockets.SocketWriter;
 import fr.rhaz.sockets.Sockets;
 import fr.rhaz.sockets.utils.AES;
+import fr.rhaz.sockets.utils.JSONMap;
 import fr.rhaz.sockets.utils.Message;
 import fr.rhaz.sockets.utils.RSA;
 
@@ -34,18 +34,20 @@ public class SocketClient implements Runnable, SocketWriter {
 	private IO IO = new IO();
 
 	public class Data {
-		private String name;
 		private String host;
 		private int port;
 		private Socket socket;
 		private SocketClientApp app;
+		public String password;
+		public String name;
 
-		public void set(String name, String host, int port, Socket socket, SocketClientApp app) {
+		public void set(String name, String host, int port, Socket socket, SocketClientApp app, String password) {
 			Data.name = name;
 			Data.host = host;
 			Data.port = port;
 			Data.socket = socket;
 			Data.app = app;
+			Data.password = password;
 		}
 	}
 
@@ -83,8 +85,8 @@ public class SocketClient implements Runnable, SocketWriter {
 		}
 	}
 
-	public SocketClient(SocketClientApp app, String name, String host, int port, int security) {
-		Data.set(name, host, port, new Socket(), app);
+	public SocketClient(SocketClientApp app, String name, String host, int port, int security, String password) {
+		Data.set(name, host, port, new Socket(), app, password);
 		Security.level = security;
 		enabled.set(true);
 	}
@@ -206,6 +208,9 @@ public class SocketClient implements Runnable, SocketWriter {
 					// Convert message to an object
 					Map<String, Object> map = message.emr();
 					
+					if(!map.get("password").equals(Data.password))
+						break loop;
+					
 					handshake:{
 						
 						// Is it our channel?
@@ -214,7 +219,7 @@ public class SocketClient implements Runnable, SocketWriter {
 							
 						// Is the message a handshake?
 						if (map.get("data").equals("handshake")) {
-							writeJSON("SocketAPI", "handshake");
+							write("SocketAPI", "handshake");
 							break handshake;
 						}
 						
@@ -227,7 +232,7 @@ public class SocketClient implements Runnable, SocketWriter {
 					}
 					
 					// Send the object to the app
-					Data.app.onJSON(this, map);
+					Data.app.onMessage(this, new JSONMap(map));
 					
 				}
 			
@@ -251,12 +256,12 @@ public class SocketClient implements Runnable, SocketWriter {
 		return Data.socket;
 	}
 	
-	public String getName() {
-		return Data.name;
-	}
-	
 	public int getSecurityLevel() {
 		return Security.level;
+	}
+	
+	public String getName() {
+		return Data.name;
 	}
 
 	public boolean isConnectedAndOpened() {
@@ -267,23 +272,23 @@ public class SocketClient implements Runnable, SocketWriter {
 		return handshaked.get();
 	}
 
-	public void writeJSON(String channel, String data) {
-		HashMap<String,Object> map = new HashMap<String,Object>();
-		map.put("data", data);
-		writeJSON(channel, map);
+	public void write(String channel, String data) {
+		write(channel, new JSONMap("data", data));
 	}
 	
-	public void writeJSON(String channel, Map<String,Object> data) {
+	public void write(String channel, JSONMap data) {
 		try {
 			
 			data.put("name", Data.name);
 			data.put("channel", channel);
+			data.put("password", Data.password);
 			
 			String json = Sockets.gson().toJson(data);
 			write(json);
 		}catch(NullPointerException ex) {}
 	}
 
+	@Deprecated
 	public synchronized void write(String data) {
 		try {
 			

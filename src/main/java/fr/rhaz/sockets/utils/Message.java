@@ -51,9 +51,9 @@ public class Message {
 		return msg;
 	}
 	
-	public Map<String, Object> emr(){
+	public JSONMap emr(){
 		end();
-		Map<String, Object> map = map();
+		JSONMap map = new JSONMap(map());
 		reset();
 		return map;
 	}

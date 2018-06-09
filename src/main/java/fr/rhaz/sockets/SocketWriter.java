@@ -1,15 +1,15 @@
 package fr.rhaz.sockets;
 
 import java.io.IOException;
-import java.util.Map;
+import fr.rhaz.sockets.utils.JSONMap;
 
 public interface SocketWriter {
+	@Deprecated
 	public void write(String data);
-	public void writeJSON(String channel, String data);
-	public void writeJSON(String channel, Map<String,Object> data);
+	public void write(String channel, String data);
+	public void write(String channel, JSONMap data);
 	public IOException close();
 	public boolean isEnabled();
 	public boolean isHandshaked();
 	public boolean isConnectedAndOpened();
-	public String getName();
 }
