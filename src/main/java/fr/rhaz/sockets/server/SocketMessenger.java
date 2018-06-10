@@ -8,6 +8,9 @@ import java.net.Socket;
 import java.security.GeneralSecurityException;
 import java.security.KeyPair;
 import java.security.PublicKey;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.crypto.SecretKey;
@@ -25,7 +28,8 @@ public class SocketMessenger implements Runnable, SocketWriter {
 	
 	private Message mRSA = new Message();
 	private Message mAES = new Message();
-	private Message message = new Message();
+	
+	private Map<String, Message> messages = new HashMap<String, Message>();
 	
 	private Data Data = new Data();
 	private Security Security = new Security();
@@ -182,12 +186,30 @@ public class SocketMessenger implements Runnable, SocketWriter {
 					// If line is null or empty, read another
 					if (read == null || read.isEmpty())
 						break loop;
+					
+					String[] split = read.split("#");
+					if(split.length < 2)
+						break loop;
+					
+					String id = split[0];
+					
+					String data = read.substring(id.length() + 1);
 
+					Message message;
+					if(messages.containsKey(id))
+						message = messages.get(id);
+					else {
+						message = new Message();
+						messages.put(id, message);
+					}
+					
 					// Is message fully received?
-					if (!read.equals("--end--")) {
-						message.add(read); // Add line
+					if (!data.equals("--end--")) {
+						message.add(data); // Add line
 						break loop; // Read another line
 					}
+					
+					messages.remove(id);
 					
 					// Convert message to an object
 					JSONMap map = message.emr();
@@ -258,9 +280,13 @@ public class SocketMessenger implements Runnable, SocketWriter {
 	public synchronized void write(String data) {
 		try {
 			
+			int id = new Random().nextInt(1000);
+			
 			String[] split = Sockets.split(data, 20);
 			
 			for (String str : split) {
+				
+				str = id + "#" + str;
 				
 				if(Security.level >= 1)
 					str = AES.encrypt(str, Security.Target.AES);
@@ -269,7 +295,7 @@ public class SocketMessenger implements Runnable, SocketWriter {
 				
 			}
 			
-			String end = "--end--";
+			String end = id + "#" + "--end--";
 			
 			if(Security.level >= 1)
 				end = AES.encrypt(end, Security.Target.AES);

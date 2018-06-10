@@ -1,4 +1,4 @@
-# RHazSockets v2.2.9
+# RHazSockets v2.3
 
 This project and its source code is licensed under the [Creative Commons Attribution-ShareAlike 4.0 International licence](https://creativecommons.org/licenses/by-sa/4.0/).
 
@@ -18,7 +18,7 @@ Add the following sections to your pom.xml
 	<dependency>
 		<groupId>fr.rhaz</groupId>
 		<artifactId>sockets</artifactId>
-		<version>2.2.9</version>
+		<version>2.3</version>
 		<scope>compile</scope>
 	</dependency>
 </dependencies>
