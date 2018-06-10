@@ -85,12 +85,14 @@ public class SocketMessenger implements Runnable, SocketWriter {
 					write("SocketAPI", "handshake");
 				
 				if (Security.level == 1) {
+					IO.writer.println("1");
 					Data.server.Data.app.log("Self AES: " + AES.toString(Security.Self.AES));
 					IO.writer.println(AES.toString(Security.Self.AES));
 					IO.writer.println("--end--");
 					IO.writer.flush();
 				}
 				if (Security.level == 2) {
+					IO.writer.println("2");
 					IO.writer.println(RSA.savePublicKey(Security.Self.RSA.getPublic()));
 					IO.writer.println("--end--");
 					IO.writer.flush();
@@ -247,7 +249,6 @@ public class SocketMessenger implements Runnable, SocketWriter {
 			
 			data.put("name", Data.server.Data.name);
 			data.put("channel", channel);
-			data.put("password", Data.server.Data.password);
 			
 			String json = Sockets.gson().toJson(data);
 			write(json);

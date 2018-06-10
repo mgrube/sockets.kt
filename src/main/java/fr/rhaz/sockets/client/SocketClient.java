@@ -62,7 +62,7 @@ public class SocketClient implements Runnable, SocketWriter {
 	}
 
 	public class Security {
-		private int level; // 0 = no security; 1 = AES encryption (b64 key sent); 2 = AES encryption, RSA
+		private int level = 0; // 0 = no security; 1 = AES encryption (b64 key sent); 2 = AES encryption, RSA
 							// handshake (RSA used for sending AES key)
 		private Target Target = new Target();
 		private Self Self = new Self();
@@ -85,9 +85,8 @@ public class SocketClient implements Runnable, SocketWriter {
 		}
 	}
 
-	public SocketClient(SocketClientApp app, String name, String host, int port, int security, String password) {
+	public SocketClient(SocketClientApp app, String name, String host, int port, String password) {
 		Data.set(name, host, port, new Socket(), app, password);
-		Security.level = security;
 		enabled.set(true);
 	}
 	
@@ -125,7 +124,17 @@ public class SocketClient implements Runnable, SocketWriter {
 					Data.app.log("read: " + read);
 					// If end of stream, close
 					if (read == null) 
-						break; 
+						throw new IOException(); 
+					
+					if(read.equals("1")) {
+						Security.level = 1;
+						break loop;
+					}
+					
+					if(read.equals("2")) {
+						Security.level = 2;
+						break loop;
+					}
 				
 					rsa:{
 						
@@ -208,9 +217,6 @@ public class SocketClient implements Runnable, SocketWriter {
 					// Convert message to an object
 					Map<String, Object> map = message.emr();
 					
-					if(!map.get("password").equals(Data.password))
-						break loop;
-					
 					handshake:{
 						
 						// Is it our channel?
@@ -220,7 +226,7 @@ public class SocketClient implements Runnable, SocketWriter {
 						// Is the message a handshake?
 						if (map.get("data").equals("handshake")) {
 							write("SocketAPI", "handshake");
-							break handshake;
+							break loop;
 						}
 						
 						if (!map.get("data").equals("handshaked"))
