@@ -1,5 +1,7 @@
 # Sockets
 
+> Beta 3.0
+
 ### Use it
 
 - Gradle: add this to your build.gradle
