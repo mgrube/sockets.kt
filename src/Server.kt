@@ -12,34 +12,25 @@ import java.security.PublicKey
 import java.util.*
 import javax.crypto.SecretKey
 
-abstract class SocketServerApp {
-    fun log(err: String) {}
-    fun onConnect(mess: SocketMessenger) {}
-    fun onDisconnect(mess: SocketMessenger) {}
-    fun onHandshake(mess: SocketMessenger, name: String) {}
-    abstract fun onMessage(mess: SocketMessenger, map: JSONMap)
-    fun run(runnable: Runnable) = Thread(runnable).start()
-}
-
-open class SocketServer(val app: SocketServerApp, val name: String, val port: Int, val password: String) : Runnable {
+open class SocketServer(val app: SocketApp.Server, val name: String, val port: Int, val password: String) : Runnable {
 
     lateinit var server: ServerSocket
-    lateinit var messengers: MutableList<SocketMessenger>
+    var messengers = mutableListOf<SocketMessenger>()
 
-    val running = server.isClosed
+    val running get() = ::server.isInitialized && !server.isClosed
 
     var config = Config()
     open class Config{
-        var security = 1
-        var buffer = 20
-        var timeout: Long = 100
+        open var security = 1
+        open var buffer = 20
+        open var timeout: Long = 100
     }
 
     fun start(): IOException? = try {
         server = ServerSocket(port)
         app.run(this)
         null
-    } catch (e: IOException){e }
+    } catch (ex: IOException){ex}
 
     override fun run() {
         while(running) {
@@ -56,12 +47,12 @@ open class SocketServer(val app: SocketServerApp, val name: String, val port: In
                     app.onConnect(it)
                     app.run(it)
                 }
-            } catch (e: IOException) {}
+            } catch (ex: IOException) {ex.message?.let {app.log(it)}; Unit}
 
             try {
                 Thread.sleep(config.timeout)
             } catch (ex: InterruptedException) {
-                println(ex.message); break
+                ex.message?.let {app.log(it)}; break
             }
         }
     }
@@ -110,28 +101,29 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
                 0 -> write("SocketAPI", "handshake")
                 1 -> writer.apply {
                     println("1")
-                    println(AES.toString(self.aes))
+                    println(AES.toString(self.aes)
+                        .also { server.app.log("server --> $it") })
                     println("--end--")
                     flush()
                 }
                 2 -> writer.apply{
                     println("2")
-                    println(RSA.savePublicKey(self.rsa.public))
+                    println(RSA.savePublicKey(self.rsa.public)
+                        .also { server.app.log("server --> $it") })
                     println("--end--")
                     flush()
                 }
             }
-        } catch (e: Exception) {}
+        } catch (ex: Exception) {ex.message?.let {server.app.log(it)}}
     }
 
     override fun run(): Unit = try{
         val close: ()->Unit = {close()}
+        server.app.log("server running")
         while(running && ready) run loop@{ // While connected
 
             // Wait before reading another line
             Thread.sleep(timeout)
-
-            val reader = reader ?: return close()
 
             // Read the line, if end of stream: close
             var read: String = reader.readLine() ?: return close()
@@ -161,6 +153,8 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
             // Is AES enabled? Do we already received AES?
             else if (security >= 1 && target.aes == null) {
 
+                server.app.log("server <--- $read")
+
                 // Is it the end of the key?
                 if (read != "--end--") return@loop mAES.add(read)
 
@@ -176,7 +170,9 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
             else {
                 // Is the line encrypted in AES?
                 if (security >= 1)
-                    read = AES.decrypt(read, self.aes) ?: return@loop
+                    read = AES.decrypt(read, self.aes) ?: return@loop server.app.log("server could not decrypt")
+
+                server.app.log("server <--- $read")
 
                 // If line is null or empty, read another
                 if (read.isEmpty()) return@loop
@@ -210,19 +206,19 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
                 val name = map["name"] as? String ?: return@loop
 
                 handshaked = true
+                server.app.log("server handshaked")
                 server.app.onHandshake(this, name)
                 write("SocketAPI", "handshaked")
             }
 
         }
-
     } catch (ex: Exception) {
         when(ex){
             is IOException,
             is GeneralSecurityException,
             is InterruptedException
-            -> Unit.also{ close()?.let { throw it } }
-            else -> throw ex
+            -> Unit.also{ close()?.let { it.message?.let {server.app.log(it)}; Unit } }
+            else -> {ex.message?.let {server.app.log(it)}; Unit}
         }
     }
 
@@ -233,33 +229,32 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
         data["name"] = server.name
         data["channel"] = channel
         write(gson.toJson(data))
-    } catch(ex: NullPointerException) {}
+    } catch(ex: NullPointerException) {ex.message?.let {server.app.log(it)}; Unit}
 
     @Synchronized
     override fun write(data: String) {
         try {
-
-            val aes = target.aes ?: return
+            server.app.log("server ---> $data")
 
             val id = Random().nextInt(1000)
             val split = split(data, config.buffer)
 
             for (str in split)
                 "$id#$str".let {
-                    if (security == 1) it
-                    else AES.encrypt(it, aes) ?: return
+                    if (security == 0) return@let it
+                    val aes = target.aes ?: return
+                    AES.encrypt(it, aes) ?: return
                 }.also { writer.println(it) }
 
             "$id#--end--".let {
-                if(security == 1) it
-                else AES.encrypt(it, aes) ?: return
+                if(security == 0) return@let it
+                val aes = target.aes ?: return
+                AES.encrypt(it, aes) ?: return
             }.also { writer.println(it) }
 
             writer.flush()
             Thread.sleep(timeout)
-        }
-        catch (e: NullPointerException){}
-        catch (e: InterruptedException){}
+        } catch (ex: InterruptedException){ex.message?.let {server.app.log(it)}}
     }
 
     override fun close(): IOException? = try {

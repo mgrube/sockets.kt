@@ -12,17 +12,8 @@ import java.security.Security
 import java.util.*
 import javax.crypto.SecretKey
 
-abstract class SocketClientApp {
-    fun log(err: String) {}
-    fun onConnect(client: SocketClient) {}
-    fun onDisconnect(client: SocketClient) {}
-    fun onHandshake(client: SocketClient) {}
-    abstract fun onMessage(client: SocketClient, map: JSONMap)
-    fun run(runnable: Runnable) = Thread(runnable).start()
-}
-
 class SocketClient(
-    val app: SocketClientApp,
+    val app: SocketApp.Client,
     val name: String,
     val host: String,
     val port: Int,
@@ -34,30 +25,37 @@ class SocketClient(
 
     override var running = true
     override var handshaked = false
-    override val ready get() = socket.isConnected && !socket.isClosed
+    override val ready get() = ::socket.isInitialized && socket.isConnected && !socket.isClosed
 
     lateinit var socket: Socket
-    val reader get() = BufferedReader(InputStreamReader(socket.getInputStream()))
-    val writer get() = PrintWriter(socket.getOutputStream())
+
+    lateinit var io: IO
+    open inner class IO{
+        val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
+        val writer = PrintWriter(socket.getOutputStream())
+    }
+
+    val reader get() = io.reader
+    val writer get() = io.writer
 
     var config = Config()
     open class Config{
-        var buffer = 20
-        var timeout: Long = 100
+        open var buffer = 20
+        open var timeout: Long = 100
     }
 
     val buffer get() = config.buffer
     val timeout get() = config.timeout
 
-    var security = -1
+    var security = 0
 
-    var self = Self()
+    lateinit var self: Self
     open class Self{
         var rsa: KeyPair = RSA.generate()
         var aes: SecretKey = AES.generate()
     }
 
-    var target = Target()
+    lateinit var target: Target
     open class Target{
         var rsa: PublicKey? = null
         var aes: SecretKey? = null
@@ -73,26 +71,28 @@ class SocketClient(
             }
 
             app.onConnect(this)
-            self = Self() ; target = Target()
+            self = Self() ; target = Target() ; io = IO()
             handshaked = false
             interact()
         } catch (e: IOException) { close() }
     }
 
     fun interact() = try {
-        val close: ()->Unit = {close()}
+        app.log("client running")
         while (running && ready) run loop@{
 
             Thread.sleep(timeout) // Wait 100 milliseconds before reading another line
 
             // Read the line
-            var read = reader.readLine() ?: return close()
+            var read = reader.readLine() ?: return {close(); Unit}()
 
             if (read == "1") return@loop {security = 1}()
             if (read == "2") return@loop {security = 2}()
 
             // Is RSA enabled? Do we received the RSA key?
             if (security == 2 && target.rsa == null){
+
+                app.log("client <--- $read")
 
                 // Is the message fully received?
                 if (read != "--end--")
@@ -109,6 +109,8 @@ class SocketClient(
 
             // Is AES enabled? Do we already received AES?
             else if(security >= 1 && target.aes == null){
+
+                app.log("client <--- $read")
 
                 // Is it the end of the key?
                 if (read != "--end--")
@@ -127,7 +129,7 @@ class SocketClient(
                 }
 
                 writer.apply {
-                    println(aes)
+                    println(aes.also { app.log("client --> $it") })
                     println("--end--")
                     flush()
                 }
@@ -137,7 +139,9 @@ class SocketClient(
 
                 // Is the line encrypted in AES?
                 if (security >= 1)
-                    read = AES.decrypt(read, self.aes) ?: return@loop
+                    read = AES.decrypt(read, self.aes) ?: return@loop app.log("client could not decrypt")
+
+                app.log("client <--- $read")
 
                 if (read.isEmpty()) return@loop
 
@@ -172,10 +176,10 @@ class SocketClient(
                     return@loop msg()
 
                 handshaked = true
+                app.log("client handshaked")
                 app.onHandshake(this)
             }
         }
-
     } catch (ex: Exception) {
         when (ex) {
             is IOException,
@@ -199,21 +203,22 @@ class SocketClient(
     @Synchronized
     override fun write(data: String){
         try {
-
-            val aes = target.aes ?: return
+            app.log("client ---> $data")
 
             val id = Random().nextInt(1000)
             val split = split(data, buffer)
 
             for (str in split)
                 "$id#$str".let {
-                    if(security == 0) it
-                    else AES.encrypt(it, aes)
+                    if(security == 0) return@let it
+                    val aes = target.aes ?: return
+                    AES.encrypt(it, aes)
                 }.also { writer.println(it) }
 
             "$id#--end--".let {
-                if(security == 0) it
-                else AES.encrypt(it, aes)
+                if(security == 0) return@let it
+                val aes = target.aes ?: return
+                AES.encrypt(it, aes)
             }.also { writer.println(it) }
 
             writer.flush()

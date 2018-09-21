@@ -6,10 +6,40 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.PrintWriter
 import java.util.HashMap
+import sun.reflect.annotation.AnnotationParser.toArray
+import java.util.ArrayList
+
+
 
 val gson = Gson()
 
-fun split(input: String, max: Int) = input.split("(?<=\\G.{$max})")
+fun split(text: String, size: Int): Array<String> {
+    val parts = ArrayList<String>()
+    val length = text.length
+    var i = 0
+    while (i < length) {
+        parts.add(text.substring(i, Math.min(length, i + size)))
+        i += size
+    }
+    return parts.toTypedArray()
+}
+
+abstract class SocketApp{
+    open fun log(err: String) {}
+    open fun run(runnable: Runnable) = Thread(runnable).start()
+    abstract class Server: SocketApp() {
+        open fun onConnect(mess: SocketMessenger) {}
+        open fun onDisconnect(mess: SocketMessenger) {}
+        open fun onHandshake(mess: SocketMessenger, name: String) {}
+        abstract fun onMessage(mess: SocketMessenger, map: JSONMap)
+    }
+    abstract class Client: SocketApp() {
+        open fun onConnect(client: SocketClient) {}
+        open fun onDisconnect(client: SocketClient) {}
+        open fun onHandshake(client: SocketClient) {}
+        abstract fun onMessage(client: SocketClient, map: JSONMap)
+    }
+}
 
 interface SocketWriter {
     val running: Boolean
@@ -78,10 +108,13 @@ open class JSONMap : HashMap<String, Any> {
     constructor(map: Map<String, Any>): super(map)
     constructor(vararg entries: Any) {
         val map = mutableMapOf<String, Any>()
-        while(entries.size >= 2) {
-            val it = entries.take(2)
-            map.put(it[0] as? String ?: continue, it[1])
+        var mentries = entries.toList()
+        while(mentries.size >= 2) {
+            val it = mentries.take(2)
+            mentries = mentries.drop(2)
+            map[it[0] as? String ?: continue] = it[1]
         }
+        putAll(map)
     }
 
     fun <T> getExtra(key: String) = get(key) as? T?
