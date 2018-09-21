@@ -1,6 +1,5 @@
 # Sockets
-
-> Beta 3.0
+> Release 3.0
 
 ### Use it
 

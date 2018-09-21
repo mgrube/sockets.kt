@@ -31,8 +31,8 @@ val jar by tasks.getting(Jar::class) {
 }
 
 java.sourceSets {
-    getByName("main").java.srcDirs("src")
-    getByName("test").java.srcDirs("test")
+    get("main").java.srcDirs("src")
+    get("test").java.srcDirs("test")
 }
 
 publishing {
