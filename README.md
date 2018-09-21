@@ -1,6 +1,8 @@
-<h1 align=center>Sockets</h1>
-<h3 align=center>Centralized communication for various usages</h3>
-
+<h3 align=center>
+    <img src="https://i.imgur.com/nOqWYTO.png"/><br>
+    Centralized communications made easy
+</h3>
+<br>
 
 ### Implement it
 
