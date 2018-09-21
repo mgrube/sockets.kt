@@ -19,6 +19,16 @@
 
 ### Implement it
 
+- Kotlin DSL: add this to your build.gradle.kts
+
+    repositories {
+        maven { url = URI("https://mymavenrepo.com/repo/NIp3fBk55f5oF6VI1Wso/")}
+    }
+
+    dependencies {
+        compile("fr.rhaz:sockets:3.0")
+    }
+
 - Gradle: add this to your build.gradle
 
       repositories {
