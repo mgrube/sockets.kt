@@ -3,6 +3,12 @@
 </h3>
 <br>
 
+### Use it
+
+- [Example in Kotlin](https://github.com/RHazDev/RHazSockets/blob/master/test/KotlinTest.kt)
+
+- [Example in Java](https://github.com/RHazDev/RHazSockets/blob/master/test/JavaTest.java)
+
 ### Implement it
 
 - Gradle: add this to your build.gradle
