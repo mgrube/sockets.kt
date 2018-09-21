@@ -1,8 +1,8 @@
-# Sockets
+<h1 align=center>Sockets</h1>
+<h3 align=center>Centralized communication for various usages</h3>
 
-> Beta 3.0
 
-### Use it
+### Implement it
 
 - Gradle: add this to your build.gradle
 
