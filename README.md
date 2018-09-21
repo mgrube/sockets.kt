@@ -1,6 +1,5 @@
 <h3 align=center>
-    <img src="https://i.imgur.com/nOqWYTO.png"/><br>
-    Centralized communications made easy
+    <img src="https://i.imgur.com/ZzXKgdg.png"/><br>
 </h3>
 <br>
 
