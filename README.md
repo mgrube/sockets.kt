@@ -1,7 +1,9 @@
-# Sockets
-> Release 3.0
+<h3 align=center>
+    <img src="https://i.imgur.com/zmjiFiV.png"/><br>
+</h3>
+<br>
 
-### Use it
+### Implement it
 
 - Gradle: add this to your build.gradle
 
