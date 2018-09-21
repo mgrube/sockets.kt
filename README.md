@@ -3,6 +3,14 @@
 </h3>
 <br>
 
+### Short example
+
+    // Server-side
+    mess.write("MyChannel", "What is the answer to life?")
+
+    // Client-side
+    client.write("MyChannel", "42")
+
 ### Use it
 
 - [Example in Kotlin](https://github.com/RHazDev/RHazSockets/blob/master/test/KotlinTest.kt)
