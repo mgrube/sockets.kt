@@ -76,6 +76,7 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
     override val running get() = server.running
     override val ready get() = socket.isConnected && !socket.isClosed
 
+    val name get() = server.name
     val config get() = server.config
     val security get() = config.security
     val timeout get() = config.timeout
@@ -85,6 +86,7 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
 
     val target = Target()
     open class Target {
+        lateinit var name: String
         var rsa: PublicKey? = null
         var aes: SecretKey? = null
     }
@@ -102,14 +104,14 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
                 1 -> writer.apply {
                     println("1")
                     println(AES.toString(self.aes)
-                        .also { server.app.log("server --> $it") })
+                        .also { server.app.log("$name --> $it") })
                     println("--end--")
                     flush()
                 }
                 2 -> writer.apply{
                     println("2")
                     println(RSA.savePublicKey(self.rsa.public)
-                        .also { server.app.log("server --> $it") })
+                        .also { server.app.log("$name --> $it") })
                     println("--end--")
                     flush()
                 }
@@ -119,7 +121,7 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
 
     override fun run(): Unit = try{
         val close: ()->Unit = {close()}
-        server.app.log("server running")
+        server.app.log("$name running")
         while(running && ready) run loop@{ // While connected
 
             // Wait before reading another line
@@ -153,7 +155,7 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
             // Is AES enabled? Do we already received AES?
             else if (security >= 1 && target.aes == null) {
 
-                server.app.log("server <--- $read")
+                server.app.log("$name <--- $read")
 
                 // Is it the end of the key?
                 if (read != "--end--") return@loop mAES.add(read)
@@ -170,9 +172,9 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
             else {
                 // Is the line encrypted in AES?
                 if (security >= 1)
-                    read = AES.decrypt(read, self.aes) ?: return@loop server.app.log("server could not decrypt")
+                    read = AES.decrypt(read, self.aes) ?: return@loop server.app.log("$name could not decrypt")
 
-                server.app.log("server <--- $read")
+                server.app.log("$name <--- $read")
 
                 // If line is null or empty, read another
                 if (read.isEmpty()) return@loop
@@ -204,11 +206,15 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
                 if (map["data"] != "handshake") return@loop msg()
 
                 val name = map["name"] as? String ?: return@loop
+                target.name = name
 
                 handshaked = true
-                server.app.log("server handshaked")
+                server.app.log("$name handshaked")
                 server.app.onHandshake(this, name)
-                write("SocketAPI", "handshaked")
+                write("SocketAPI", JSONMap(
+                    "data", "handshaked",
+                    "name", server.name
+                ))
             }
 
         }
@@ -226,7 +232,6 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
         write(channel, JSONMap("data", data))
 
     override fun write(channel: String, data: JSONMap) = try {
-        data["name"] = server.name
         data["channel"] = channel
         write(gson.toJson(data))
     } catch(ex: NullPointerException) {ex.message?.let {server.app.log(it)}; Unit}
@@ -234,7 +239,7 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
     @Synchronized
     override fun write(data: String) {
         try {
-            server.app.log("server ---> $data")
+            server.app.log("$name ---> $data")
 
             val id = Random().nextInt(1000)
             val split = split(data, config.buffer)

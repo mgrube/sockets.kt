@@ -20,8 +20,8 @@ object MyServerApp: SocketApp.Server() {
 
     override fun onMessage(mess: SocketMessenger, map: JSONMap) {
 
-        val name = map.getExtra<String>("name")
-        val channel = map.getExtra<String>("channel")
+        val name = mess.target.name
+        val channel = map.channel
         val message = map.getExtra<String>("data")
         println("$name ($channel): $message")
 
@@ -34,8 +34,8 @@ object MyClientApp: SocketApp.Client(){
 
     override fun onMessage(client: SocketClient, map: JSONMap) {
 
-        val name = map.getExtra<String>("name")
-        val channel = map.getExtra<String>("channel")
+        val name = client.target.name
+        val channel = map.channel
         val message = map.getExtra<String>("data") ?: return
         println("$channel: $message")
 

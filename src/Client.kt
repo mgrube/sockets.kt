@@ -44,19 +44,18 @@ class SocketClient(
         open var timeout: Long = 100
     }
 
-    val buffer get() = config.buffer
-    val timeout get() = config.timeout
 
-    var security = 0
-
-    lateinit var self: Self
+    var self = Self()
     open class Self{
+        lateinit var name: String
         var rsa: KeyPair = RSA.generate()
         var aes: SecretKey = AES.generate()
     }
 
     lateinit var target: Target
     open class Target{
+        var security = 1
+        lateinit var name: String
         var rsa: PublicKey? = null
         var aes: SecretKey? = null
     }
@@ -70,29 +69,31 @@ class SocketClient(
                 setPerformancePreferences(0, 1, 2)
             }
 
-            app.onConnect(this)
-            self = Self() ; target = Target() ; io = IO()
+            self = Self()
+            target = Target()
+            io = IO()
             handshaked = false
+            app.onConnect(this)
             interact()
         } catch (e: IOException) { close() }
     }
 
     fun interact() = try {
-        app.log("client running")
+        app.log("$name running")
         while (running && ready) run loop@{
 
-            Thread.sleep(timeout) // Wait 100 milliseconds before reading another line
+            Thread.sleep(config.timeout) // Wait 100 milliseconds before reading another line
 
             // Read the line
             var read = reader.readLine() ?: return {close(); Unit}()
 
-            if (read == "1") return@loop {security = 1}()
-            if (read == "2") return@loop {security = 2}()
+            if (read == "1") return@loop {target.security = 1}()
+            if (read == "2") return@loop {target.security = 2}()
 
             // Is RSA enabled? Do we received the RSA key?
-            if (security == 2 && target.rsa == null){
+            if (target.security == 2 && target.rsa == null){
 
-                app.log("client <--- $read")
+                app.log("$name <--- $read")
 
                 // Is the message fully received?
                 if (read != "--end--")
@@ -108,28 +109,28 @@ class SocketClient(
             }
 
             // Is AES enabled? Do we already received AES?
-            else if(security >= 1 && target.aes == null){
+            else if(target.security >= 1 && target.aes == null){
 
-                app.log("client <--- $read")
+                app.log("$name <--- $read")
 
                 // Is it the end of the key?
                 if (read != "--end--")
                     return@loop mAES.add(read)
 
                 mAES.egr().let {
-                    if(security == 1) it
+                    if(target.security == 1) it
                     else RSA.decrypt(it, self.rsa.private) ?: return@loop
                 }.also { target.aes = AES.toKey(it) }
 
                 // Now we send our AES key encrypted with server RSA
                 val aes = AES.toString(self.aes).let {
-                    if(security == 1) return@let it
+                    if(target.security == 1) return@let it
                     val rsa = target.rsa ?: return@loop
                     RSA.encrypt(it, rsa)
                 }
 
                 writer.apply {
-                    println(aes.also { app.log("client --> $it") })
+                    println(aes.also { app.log("$name --> $it") })
                     println("--end--")
                     flush()
                 }
@@ -138,10 +139,10 @@ class SocketClient(
             else{
 
                 // Is the line encrypted in AES?
-                if (security >= 1)
-                    read = AES.decrypt(read, self.aes) ?: return@loop app.log("client could not decrypt")
+                if (target.security >= 1)
+                    read = AES.decrypt(read, self.aes) ?: return@loop app.log("$name could not decrypt")
 
-                app.log("client <--- $read")
+                app.log("$name <--- $read")
 
                 if (read.isEmpty()) return@loop
 
@@ -170,13 +171,17 @@ class SocketClient(
 
                 // Is the message a handshake?
                 if (map["data"] == "handshake")
-                    return@loop write("SocketAPI", "handshake")
+                    return@loop write("SocketAPI", JSONMap(
+                        "data", "handshake",
+                        "name", self.name
+                    ))
 
                 if (map["data"] != "handshaked")
                     return@loop msg()
 
+                target.name = map["name"] as? String ?: return@loop
                 handshaked = true
-                app.log("client handshaked")
+                app.log("$name handshaked")
                 app.onHandshake(this)
             }
         }
@@ -194,7 +199,6 @@ class SocketClient(
         write(channel, JSONMap("data", data))
 
     override fun write(channel: String, data: JSONMap) = try {
-        data["name"] = name
         data["channel"] = channel
         data["password"] = password
         write(gson.toJson(data))
@@ -203,26 +207,26 @@ class SocketClient(
     @Synchronized
     override fun write(data: String){
         try {
-            app.log("client ---> $data")
+            app.log("$name ---> $data")
 
             val id = Random().nextInt(1000)
-            val split = split(data, buffer)
+            val split = split(data, config.buffer)
 
             for (str in split)
                 "$id#$str".let {
-                    if(security == 0) return@let it
+                    if(target.security == 0) return@let it
                     val aes = target.aes ?: return
                     AES.encrypt(it, aes)
                 }.also { writer.println(it) }
 
             "$id#--end--".let {
-                if(security == 0) return@let it
+                if(target.security == 0) return@let it
                 val aes = target.aes ?: return
                 AES.encrypt(it, aes)
             }.also { writer.println(it) }
 
             writer.flush()
-            Thread.sleep(timeout)
+            Thread.sleep(config.timeout)
 
         }
         catch (e: NullPointerException) { }

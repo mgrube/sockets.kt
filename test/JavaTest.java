@@ -29,11 +29,9 @@ public class JavaTest {
 
         public void onMessage(SocketMessenger mess, JSONMap map) {
 
-            String name = map.getExtra("name");
-            if(name == null) return;
+            String name = mess.getTarget().getName();
 
-            String channel = map.getExtra("channel");
-            if(channel == null) return;
+            String channel = map.getChannel();
 
             String message = map.getExtra("data");
             if(message == null) return;
@@ -48,11 +46,9 @@ public class JavaTest {
     public static SocketApp.Client myClientApp = new SocketApp.Client() {
         public void onMessage(SocketClient client, JSONMap map) {
 
-            String name = map.getExtra("name");
-            if(name == null) return;
+            String name = client.getTarget().getName();
 
-            String channel = map.getExtra("channel");
-            if(channel == null) return;
+            String channel = map.getChannel();
 
             String message = map.getExtra("data");
             if(message == null) return;
