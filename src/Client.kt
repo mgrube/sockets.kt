@@ -18,7 +18,7 @@ class SocketClient(
     val host: String,
     val port: Int,
     val password: String
-) : Runnable, SocketWriter {
+) : Runnable, SocketWriter, SocketHandler {
 
     val mRSA = Message() ; val mAES = Message()
     val messages = HashMap<String, Message>()

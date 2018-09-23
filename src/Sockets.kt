@@ -41,6 +41,11 @@ abstract class SocketApp{
     }
 }
 
+interface SocketHandler{
+    fun isServer() = this is SocketServer
+    fun isClient() = this is SocketClient
+}
+
 interface SocketWriter {
     val running: Boolean
     val handshaked: Boolean

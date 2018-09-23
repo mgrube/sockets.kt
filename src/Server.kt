@@ -12,7 +12,7 @@ import java.security.PublicKey
 import java.util.*
 import javax.crypto.SecretKey
 
-open class SocketServer(val app: SocketApp.Server, val name: String, val port: Int, val password: String) : Runnable {
+open class SocketServer(val app: SocketApp.Server, val name: String, val port: Int, val password: String) : Runnable, SocketHandler {
 
     lateinit var server: ServerSocket
     var messengers = mutableListOf<SocketMessenger>()
