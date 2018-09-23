@@ -209,7 +209,7 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
                 target.name = name
 
                 handshaked = true
-                server.app.log("$name handshaked")
+                server.app.log("${server.name} handshaked")
                 server.app.onHandshake(this, name)
                 write("SocketAPI", JSONMap(
                     "data", "handshaked",

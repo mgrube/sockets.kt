@@ -47,7 +47,6 @@ class SocketClient(
 
     var self = Self()
     open class Self{
-        lateinit var name: String
         var rsa: KeyPair = RSA.generate()
         var aes: SecretKey = AES.generate()
     }
@@ -173,7 +172,7 @@ class SocketClient(
                 if (map["data"] == "handshake")
                     return@loop write("SocketAPI", JSONMap(
                         "data", "handshake",
-                        "name", self.name
+                        "name", name
                     ))
 
                 if (map["data"] != "handshaked")
