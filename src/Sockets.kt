@@ -122,7 +122,7 @@ open class JSONMap : HashMap<String, Any> {
         putAll(map)
     }
 
-    fun <T> getExtra(key: String) = get(key) as? T?
+    fun <T> getExtra(key: String): T? = get(key) as? T
     fun getExtraMap(key: String) = getExtra<Map<String, Any>>(key)?.let(::JSONMap)
 
 }
