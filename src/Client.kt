@@ -197,39 +197,32 @@ class SocketClient(
     override fun write(channel: String, data: String) =
         write(channel, JSONMap("data", data))
 
-    override fun write(channel: String, data: JSONMap) = try {
+    override fun write(channel: String, data: JSONMap) {
         data["channel"] = channel
         data["password"] = password
         write(gson.toJson(data))
-    } catch (ex: NullPointerException) {}
+    }
 
-    @Synchronized
-    override fun write(data: String){
-        try {
-            app.log("$name ---> $data")
+    override fun write(data: String) = app.run {
+        app.log("$name ---> $data")
 
-            val id = Random().nextInt(1000)
-            val split = split(data, config.buffer)
+        val id = Random().nextInt(1000)
+        val split = split(data, config.buffer)
 
-            for (str in split)
-                "$id#$str".let {
-                    if(target.security == 0) return@let it
-                    val aes = target.aes ?: return
-                    AES.encrypt(it, aes)
-                }.also { writer.println(it) }
-
-            "$id#--end--".let {
+        for (str in split)
+            "$id#$str".let {
                 if(target.security == 0) return@let it
                 val aes = target.aes ?: return
                 AES.encrypt(it, aes)
             }.also { writer.println(it) }
 
-            writer.flush()
-            Thread.sleep(config.timeout)
+        "$id#--end--".let {
+            if(target.security == 0) return@let it
+            val aes = target.aes ?: return
+            AES.encrypt(it, aes)
+        }.also { writer.println(it) }
 
-        }
-        catch (e: NullPointerException) { }
-        catch (e: InterruptedException) { }
+        writer.flush()
     }
 
     override fun close(): IOException? = try {

@@ -12,7 +12,12 @@ import java.security.PublicKey
 import java.util.*
 import javax.crypto.SecretKey
 
-open class SocketServer(val app: SocketApp.Server, val name: String, val port: Int, val password: String) : Runnable, SocketHandler {
+open class SocketServer(
+    val app: SocketApp.Server,
+    val name: String,
+    val port: Int,
+    val password: String
+) : Runnable, SocketHandler {
 
     lateinit var server: ServerSocket
     var messengers = mutableListOf<SocketMessenger>()
@@ -231,35 +236,31 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
     override fun write(channel: String, data: String) =
         write(channel, JSONMap("data", data))
 
-    override fun write(channel: String, data: JSONMap) = try {
+    override fun write(channel: String, data: JSONMap) {
         data["channel"] = channel
         write(gson.toJson(data))
-    } catch(ex: NullPointerException) {ex.message?.let {server.app.log(it)}; Unit}
+    }
 
-    @Synchronized
-    override fun write(data: String) {
-        try {
-            server.app.log("$name ---> $data")
+    override fun write(data: String) = server.app.run {
+        server.app.log("$name ---> $data")
 
-            val id = Random().nextInt(1000)
-            val split = split(data, config.buffer)
+        val id = Random().nextInt(1000)
+        val split = split(data, config.buffer)
 
-            for (str in split)
-                "$id#$str".let {
-                    if (security == 0) return@let it
-                    val aes = target.aes ?: return
-                    AES.encrypt(it, aes) ?: return
-                }.also { writer.println(it) }
-
-            "$id#--end--".let {
-                if(security == 0) return@let it
+        for (str in split)
+            "$id#$str".let {
+                if (security == 0) return@let it
                 val aes = target.aes ?: return
                 AES.encrypt(it, aes) ?: return
             }.also { writer.println(it) }
 
-            writer.flush()
-            Thread.sleep(timeout)
-        } catch (ex: InterruptedException){ex.message?.let {server.app.log(it)}}
+        "$id#--end--".let {
+            if(security == 0) return@let it
+            val aes = target.aes ?: return
+            AES.encrypt(it, aes) ?: return
+        }.also { writer.println(it) }
+
+        writer.flush()
     }
 
     override fun close(): IOException? = try {
