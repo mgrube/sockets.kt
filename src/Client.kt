@@ -66,13 +66,14 @@ class SocketClient(
     override fun run() {
         while(running) try {
             target = Target()
-            io = IO()
             handshaked = false
 
-            socket = Socket().apply {
-                connect(InetSocketAddress(host, port), config.timeout.toInt())
+            socket = Socket(host, port).apply {
+                tcpNoDelay = true
+                setPerformancePreferences(0, 0, 2)
             }
 
+            io = IO()
             app.onConnect(this)
             interact()
         } catch (e: IOException) { close() }
