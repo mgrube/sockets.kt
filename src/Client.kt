@@ -68,9 +68,9 @@ class SocketClient(
             target = Target()
             handshaked = false
 
-            socket = Socket(host, port).apply {
-                tcpNoDelay = true
-                setPerformancePreferences(0, 0, 2)
+            val port = port
+            socket = Socket().apply {
+                connect(InetSocketAddress(host, port), 5000)
             }
 
             io = IO()
