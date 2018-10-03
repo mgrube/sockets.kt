@@ -19,10 +19,10 @@ open class SocketServer(
     val password: String
 ) : Runnable, SocketHandler {
 
-    lateinit var server: ServerSocket
+    var server: ServerSocket? = null
     var messengers = mutableListOf<SocketMessenger>()
 
-    val running get() = ::server.isInitialized && !server.isClosed
+    val running get() = server?.run{!isClosed} ?: false
 
     var config = Config()
     open class Config{
@@ -40,8 +40,10 @@ open class SocketServer(
     override fun run() {
         while(running) {
             try {
+                Thread.sleep(config.timeout)
+
                 // Accept new connection
-                val socket = server.accept()
+                val socket = server?.accept() ?: continue
 
                 // Create a new messenger for this socket
                 SocketMessenger(this, socket).also {
@@ -49,20 +51,16 @@ open class SocketServer(
                     app.onConnect(it)
                     app.run(it)
                 }
-            } catch (ex: IOException) {ex.message?.let {app.log(it)}; Unit}
-
-            try {
-                Thread.sleep(config.timeout)
-            } catch (ex: InterruptedException) {
-                ex.message?.let {app.log(it)}; break
             }
+            catch (ex: InterruptedException) { break }
+            catch (ex: IOException) {ex.message?.let {app.log(it)};}
         }
     }
 
     fun close(): IOException? = try {
         if(running){
             messengers.forEach{close()}
-            server.close()
+            server?.close()
         }
         null
     } catch (ex: IOException) { ex }
@@ -88,7 +86,7 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
 
     val target = Target()
     open class Target {
-        lateinit var name: String
+        var name: String? = null
         var rsa: PublicKey? = null
         var aes: SecretKey? = null
     }

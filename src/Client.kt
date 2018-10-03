@@ -27,14 +27,14 @@ class SocketClient(
 
     override var running = true
     override var handshaked = false
-    override val ready get() = ::socket.isInitialized && socket.isConnected && !socket.isClosed
+    override val ready get() = socket?.run { isConnected && !isClosed } ?: false
 
-    lateinit var socket: Socket
+    var socket: Socket? = null
 
     lateinit var io: IO
     open inner class IO{
-        val reader = BufferedReader(InputStreamReader(socket.getInputStream()))
-        val writer = PrintWriter(socket.getOutputStream())
+        val reader = BufferedReader(InputStreamReader(socket?.getInputStream()))
+        val writer = PrintWriter(socket?.getOutputStream())
     }
 
     val reader get() = io.reader
@@ -56,7 +56,7 @@ class SocketClient(
     lateinit var target: Target
     open class Target{
         var security = 1
-        lateinit var name: String
+        var name: String? = null
         var rsa: PublicKey? = null
         var aes: SecretKey? = null
     }
@@ -230,7 +230,7 @@ class SocketClient(
     override fun close(): IOException? = try {
         if(ready){
             handshaked = false
-            socket.close()
+            socket?.close()
             app.onDisconnect(this)
         }
         null
