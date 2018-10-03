@@ -41,10 +41,7 @@ open class SocketServer(
         while(running) {
             try {
                 // Accept new connection
-                val socket = server.accept().apply {
-                    tcpNoDelay = true
-                    setPerformancePreferences(0, 1, 2)
-                }
+                val socket = server.accept()
 
                 // Create a new messenger for this socket
                 SocketMessenger(this, socket).also {

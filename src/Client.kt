@@ -4,7 +4,9 @@ import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
 import java.io.PrintWriter
+import java.net.InetSocketAddress
 import java.net.Socket
+import java.net.SocketAddress
 import java.security.GeneralSecurityException
 import java.security.KeyPair
 import java.security.PublicKey
@@ -63,15 +65,14 @@ class SocketClient(
 
     override fun run() {
         while(running) try {
-            socket = Socket(host, port).apply {
-                tcpNoDelay = true
-                setPerformancePreferences(0, 1, 2)
-            }
-
-            self = Self()
             target = Target()
             io = IO()
             handshaked = false
+
+            socket = Socket().apply {
+                connect(InetSocketAddress(host, port), config.timeout.toInt())
+            }
+
             app.onConnect(this)
             interact()
         } catch (e: IOException) { close() }
