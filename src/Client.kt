@@ -65,13 +65,13 @@ class SocketClient(
 
     override fun run() {
         while(running) try {
+            Thread.sleep(config.timeout)
+
             target = Target()
             handshaked = false
 
             val port = port
-            socket = Socket().apply {
-                connect(InetSocketAddress(host, port), 5000)
-            }
+            socket = Socket(host, port)
 
             io = IO()
             app.onConnect(this)
