@@ -59,7 +59,7 @@ open class SocketServer(
 
     fun close(): IOException? = try {
         if(running){
-            messengers.forEach{close()}
+            messengers.forEach{it.close()}
             server?.close()
         }
         null
