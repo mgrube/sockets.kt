@@ -26,7 +26,7 @@
       }
 
       dependencies {
-          compile("fr.rhaz:sockets:3.0.6")
+          compile("fr.rhaz:sockets:3.0.7")
       }
 
 - Gradle: add this to your build.gradle
@@ -36,7 +36,7 @@
       }
 
       dependencies {
-          compile 'fr.rhaz:sockets:3.0.6'
+          compile 'fr.rhaz:sockets:3.0.7'
       }
 
 
@@ -53,7 +53,7 @@
         <dependency>
             <groupId>fr.rhaz</groupId>
             <artifactId>sockets</artifactId>
-            <version>3.0.6</version>
+            <version>3.0.7</version>
             <scope>compile</scope>
         </dependency>
       </dependencies>

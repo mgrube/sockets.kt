@@ -200,7 +200,7 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
                 if(map["password"] != server.password) return@loop
 
                 // Send the object to the app
-                val msg = {server.app.onMessage(this, JSONMap(map))}
+                fun msg() = server.app.onMessage(this, map)
 
                 if (map["channel"] != "SocketAPI") return@loop msg()
                 if (map["data"] != "handshake") return@loop msg()
@@ -211,7 +211,7 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
                 handshaked = true
                 server.app.log("${server.name} handshaked")
                 server.app.onHandshake(this, name)
-                write("SocketAPI", JSONMap(
+                write("SocketAPI", jsonMap(
                     "data", "handshaked",
                     "name", server.name
                 ))
@@ -229,9 +229,9 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
     }
 
     override fun write(channel: String, data: String) =
-        write(channel, JSONMap("data", data))
+        write(channel, jsonMap("data", data))
 
-    override fun write(channel: String, data: JSONMap) {
+    override fun write(channel: String, data: jsonMap) {
         data["channel"] = channel
         write(gson.toJson(data))
     }

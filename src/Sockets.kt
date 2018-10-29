@@ -9,9 +9,19 @@ import java.util.HashMap
 import sun.reflect.annotation.AnnotationParser.toArray
 import java.util.ArrayList
 
-
-
 val gson = Gson()
+typealias jsonMap = MutableMap<String, Any>
+fun jsonMap() = mutableMapOf<String, Any>()
+fun jsonMap(map: Map<String, Any>) = map.toMutableMap()
+fun jsonMap(vararg pairs: Pair<String, Any>) = mutableMapOf(*pairs)
+fun jsonMap(vararg entries: Any) = jsonMap().also{
+    var mentries = entries.toList()
+    while(mentries.size >= 2) {
+        val pair = mentries.take(2)
+        it[pair[0] as? String ?: continue] = pair[1]
+        mentries = mentries.drop(2)
+    }
+}
 
 fun split(text: String, size: Int): Array<String> {
     val parts = ArrayList<String>()
@@ -31,13 +41,13 @@ abstract class SocketApp{
         open fun onConnect(mess: SocketMessenger) {}
         open fun onDisconnect(mess: SocketMessenger) {}
         open fun onHandshake(mess: SocketMessenger, name: String) {}
-        abstract fun onMessage(mess: SocketMessenger, map: JSONMap)
+        abstract fun onMessage(mess: SocketMessenger, map: jsonMap)
     }
     abstract class Client: SocketApp() {
         open fun onConnect(client: SocketClient) {}
         open fun onDisconnect(client: SocketClient) {}
         open fun onHandshake(client: SocketClient) {}
-        abstract fun onMessage(client: SocketClient, map: JSONMap)
+        abstract fun onMessage(client: SocketClient, map: jsonMap)
     }
 }
 
@@ -52,7 +62,7 @@ interface SocketWriter {
     val ready: Boolean
     fun write(data: String)
     fun write(channel: String, data: String)
-    fun write(channel: String, data: JSONMap)
+    fun write(channel: String, data: jsonMap)
     fun close(): IOException?
 }
 
@@ -97,32 +107,10 @@ open class Message {
         return msg
     }
 
-    fun emr(): JSONMap {
+    fun emr(): jsonMap {
         end()
-        val map = JSONMap(map())
+        val map = map()
         reset()
-        return map
+        return map.toMutableMap()
     }
-}
-
-open class JSONMap : HashMap<String, Any> {
-
-    val channel = getExtra<String>("channel")
-
-    constructor() : super()
-    constructor(map: Map<String, Any>): super(map)
-    constructor(vararg entries: Any) {
-        val map = mutableMapOf<String, Any>()
-        var mentries = entries.toList()
-        while(mentries.size >= 2) {
-            val it = mentries.take(2)
-            mentries = mentries.drop(2)
-            map[it[0] as? String ?: continue] = it[1]
-        }
-        putAll(map)
-    }
-
-    fun <T> getExtra(key: String): T? = get(key) as? T
-    fun getExtraMap(key: String) = getExtra<Map<String, Any>>(key)?.let(::JSONMap)
-
 }

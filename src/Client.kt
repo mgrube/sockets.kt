@@ -4,13 +4,10 @@ import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStreamReader
 import java.io.PrintWriter
-import java.net.InetSocketAddress
 import java.net.Socket
-import java.net.SocketAddress
 import java.security.GeneralSecurityException
 import java.security.KeyPair
 import java.security.PublicKey
-import java.security.Security
 import java.util.*
 import javax.crypto.SecretKey
 
@@ -165,14 +162,14 @@ class SocketClient(
                 val map = message.emr()
 
                 // Send the object to the app
-                val msg: ()->Unit = {app.onMessage(this, JSONMap(map))}
+                fun msg() = app.onMessage(this, map)
 
                 // Is it our channel?
                 if(map["channel"] != "SocketAPI") return@loop msg()
 
                 // Is the message a handshake?
                 if (map["data"] == "handshake")
-                    return@loop write("SocketAPI", JSONMap(
+                    return@loop write("SocketAPI", jsonMap(
                         "data", "handshake",
                         "name", name
                     ))
@@ -197,9 +194,9 @@ class SocketClient(
     }
 
     override fun write(channel: String, data: String) =
-        write(channel, JSONMap("data", data))
+        write(channel, jsonMap("data", data))
 
-    override fun write(channel: String, data: JSONMap) {
+    override fun write(channel: String, data: jsonMap) {
         data["channel"] = channel
         data["password"] = password
         write(gson.toJson(data))
