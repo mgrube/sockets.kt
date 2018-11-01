@@ -57,6 +57,9 @@ open class SocketServer(
         }
     }
 
+    fun getMessengerOf(target: String) =
+        messengers.firstOrNull { it.target.name == target }
+
     override fun interrupt(): IOException? = try {
         if(running){
             messengers.forEach{it.close()}
