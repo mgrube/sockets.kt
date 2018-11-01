@@ -72,11 +72,11 @@ class SocketClient(
 
             io = IO()
             app.onConnect(this)
-            interact()
+            read()
         } catch (e: IOException) { close() }
     }
 
-    fun interact() = try {
+    fun read() = try {
         app.log("$name running")
         while (running && ready) run loop@{
 
@@ -202,6 +202,7 @@ class SocketClient(
         write(gson.toJson(data))
     }
 
+    @Deprecated("")
     override fun write(data: String) = app.run {
         app.log("$name ---> $data")
 
@@ -233,7 +234,7 @@ class SocketClient(
         null
     } catch (ex: IOException) {ex}
 
-    fun interrupt(): IOException? = close().also { running = false }
+    override fun interrupt(): IOException? = close().also { running = false }
 
 }
 

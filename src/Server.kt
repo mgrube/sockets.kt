@@ -57,7 +57,7 @@ open class SocketServer(
         }
     }
 
-    fun close(): IOException? = try {
+    override fun interrupt(): IOException? = try {
         if(running){
             messengers.forEach{it.close()}
             server?.close()

@@ -10,6 +10,7 @@ import sun.reflect.annotation.AnnotationParser.toArray
 import java.util.ArrayList
 
 val gson = Gson()
+
 typealias jsonMap = MutableMap<String, Any>
 fun jsonMap() = mutableMapOf<String, Any>()
 fun jsonMap(map: Map<String, Any>) = map.toMutableMap()
@@ -35,8 +36,10 @@ fun split(text: String, size: Int): Array<String> {
 }
 
 abstract class SocketApp{
-    open fun log(err: String) {}
+    open fun log(err: String) = println(err)
+    open fun log(ex: Exception) {ex.message?.let(::log)}
     open fun run(runnable: Runnable) = Thread(runnable).start()
+
     abstract class Server: SocketApp() {
         open fun onConnect(mess: SocketMessenger) {}
         open fun onDisconnect(mess: SocketMessenger) {}
@@ -54,6 +57,7 @@ abstract class SocketApp{
 interface SocketHandler{
     fun isServer() = this is SocketServer
     fun isClient() = this is SocketClient
+    fun interrupt(): IOException?
 }
 
 interface SocketWriter {
@@ -76,13 +80,11 @@ open class Message {
     var msg = ""
     var ended = false
 
-    @Throws(IllegalStateException::class)
     fun add(line: String) {
         if (ended) throw IllegalStateException()
         msg += line
     }
 
-    @Throws(IllegalStateException::class)
     fun get() = msg.also{
         if (!ended) throw IllegalStateException()
     }
