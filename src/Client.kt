@@ -53,7 +53,7 @@ class SocketClient(
     lateinit var target: Target
     open class Target{
         var security = 1
-        var name: String? = null
+        lateinit var name: String
         var rsa: PublicKey? = null
         var aes: SecretKey? = null
     }

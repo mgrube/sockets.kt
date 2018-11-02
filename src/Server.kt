@@ -89,7 +89,7 @@ open class SocketMessenger(var server: SocketServer, var socket: Socket) : Runna
 
     val target = Target()
     open class Target {
-        var name: String? = null
+        lateinit var name: String
         var rsa: PublicKey? = null
         var aes: SecretKey? = null
     }
