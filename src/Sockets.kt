@@ -1,3 +1,4 @@
+
 package fr.rhaz.sockets
 
 import java.io.PrintWriter
@@ -5,31 +6,58 @@ import java.net.ServerSocket
 import java.net.Socket
 import javax.crypto.SecretKey
 
-open class MultiSocket(val name: String, val port: Int) {
+var defaultPort = 8080
+var defaultTimeout = 100L
+var defaultDiscovery = true
+var defaultLogger = fun(ex: Exception){ ex.message?.let(::println) }
+var defaultBootstrap = mutableListOf<String>()
 
-    // Changing timeout won't affect current connections
-    var timeout = 100L
+@JvmOverloads
+fun multiSocket(
+    name: String,
+    port: Int = defaultPort,
+    timeout: Long = defaultTimeout,
+    discovery: Boolean = defaultDiscovery,
+    logger: (Exception) -> Unit = defaultLogger,
+    bootstrap: List<String> = defaultBootstrap
+) = MultiSocket(name, port, timeout, discovery, logger).apply{connect(bootstrap)}
 
-    val server = ServerSocket(port)
+open class MultiSocket(
+    val name: String,
+    val port: Int,
+    var timeout: Long,
+    var discovery: Boolean,
+    var logger: (Exception) -> Unit
+){
 
+    private val server = ServerSocket(port)
     private val connections = mutableListOf<Connection>()
+
     val readyConnections get() = connections.filter{it.ready}
-    val connectionsByTarget get()
-        = readyConnections.associateBy{it.targetName}
+    val connectionsByTarget get() =
+        readyConnections.associateBy{it.targetName}
     fun getConnection(target: String) = connectionsByTarget[target]
 
     fun accept() = run {server.accept()}
     fun connect(host: String) = run {Socket(host, port)}
+    fun connect(hosts: List<String>) = hosts.forEach(::connect)
 
-    val log = fun(ex: Exception){ ex.message?.let(::println) }
+    fun log(ex: Exception) = logger(ex)
 
     // Run a connection
     private fun run(getter: () -> Socket) = Thread{
         var connection: Connection? = null
         try{
             connection = Connection(this, getter())
-            connections += connection
-            onConnect.forEach{it(connection)}
+            this.connections += connection
+            this.onConnect.forEach{it(connection)}
+            connection.onReady {
+                this.onReady.forEach{it(connection)}
+            }
+            connection.onMessage { msg ->
+                this.onMessage.forEach{it(connection, msg)}
+            }
+            if(discovery) connection.discover()
             connection.run()
         }
         catch(ex: Exception){ log(ex) }
@@ -43,14 +71,36 @@ open class MultiSocket(val name: String, val port: Int) {
     }.start()
 
     // Listeners
-    val onConnect = mutableListOf<Connection.() -> Unit>()
-    val onDisconnect = mutableListOf<Connection.() -> Unit>()
+    private val onConnect = mutableListOf<Connection.() -> Unit>()
+    fun onConnect(listener: Connection.() -> Unit){ onConnect += listener }
 
+    private val onDisconnect = mutableListOf<Connection.() -> Unit>()
+    fun onDisconnect(listener: Connection.() -> Unit){ onDisconnect += listener}
+
+    private val onReady = mutableListOf<Connection.() -> Unit>()
+    fun onReady(listener: Connection.() -> Unit){ onReady += listener }
+
+    private val onMessage = mutableListOf<Connection.(jsonMap) -> Unit>()
+    fun onMessage(listener: Connection.(jsonMap) -> Unit){ onMessage += listener }
+
+    val peers get() = readyConnections.map { it.socket.remoteSocketAddress.toString() }
+    fun Connection.discover() {
+        onReady {
+            msg("Discover", jsonMap("peers" to peers))
+        }
+        onMessage { msg ->
+            if(msg["channel"] == "discover"){
+                val peers = msg["peers"] as? List<String>
+                ?: throw Exception("Peers is not list of string")
+                connect(peers)
+            }
+        }
+    }
 }
 
 class Connection(val parent: MultiSocket, val socket: Socket){
 
-    var thread = Thread.currentThread()
+    val thread = Thread.currentThread()
     fun interrupt() = thread.interrupt()
 
     var timeout = parent.timeout
@@ -58,8 +108,8 @@ class Connection(val parent: MultiSocket, val socket: Socket){
     lateinit var targetName: String private set
     val selfName = parent.name
 
-    val reader = socket.getInputStream().bufferedReader()
-    val writer = PrintWriter(socket.getOutputStream())
+    private val reader = socket.getInputStream().bufferedReader()
+    private val writer = PrintWriter(socket.getOutputStream())
 
     private lateinit var targetKey: SecretKey
     private val selfKey = AES.generate()
@@ -82,8 +132,12 @@ class Connection(val parent: MultiSocket, val socket: Socket){
     }
 
     var ready = false; private set
-    val onReady = mutableListOf<() -> Unit>()
-    val onMessage = mutableListOf<(jsonMap) -> Unit>()
+
+    private val onReady = mutableListOf<() -> Unit>()
+    fun onReady(listener: () -> Unit) { onReady += listener }
+
+    private val onMessage = mutableListOf<(jsonMap) -> Unit>()
+    fun onMessage(listener: (jsonMap) -> Unit) { onMessage += listener }
 
     internal fun run() {
 
@@ -103,33 +157,31 @@ class Connection(val parent: MultiSocket, val socket: Socket){
                 continue
             }
 
-            if("status" in msg.keys){
+            if(msg["channel"] != "Sockets")
+            throw Exception("Unexpected message: $msg")
 
-                val status = msg["status"] as? String
-                ?: throw Exception("Status is not a string")
+            val status = msg["status"] as? String
+            ?: throw Exception("Unexpected message: $msg")
 
-                if(status == "ready"){
-                    ready = true
-                    onReady.forEach{it()}
-                    continue
-                }
-
-                if(status == "pending"){
-                    val key = msg["key"] as? String
-                    ?: throw Exception("AES is not a string")
-                    targetKey = AES.toKey(key)
-
-                    targetName = msg["name"] as? String
-                    ?: throw Exception("Name is not a string")
-
-                    msg("Sockets", jsonMap("status", "ready"))
-                    continue
-                }
-
-                throw Exception("Unexpected status: $status")
+            if(status == "ready"){
+                ready = true
+                onReady.forEach{it()}
+                continue
             }
 
-            throw Exception("Unexpected message: $msg")
+            if(status == "pending"){
+                val key = msg["key"] as? String
+                ?: throw Exception("AES is not a string")
+                targetKey = AES.toKey(key)
+
+                targetName = msg["name"] as? String
+                ?: throw Exception("Name is not a string")
+
+                msg("Sockets", jsonMap("status", "ready"))
+                continue
+            }
+
+            throw Exception("Unexpected status: $status")
         }
     }
 }
