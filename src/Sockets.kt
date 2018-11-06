@@ -2,14 +2,24 @@
 package fr.rhaz.sockets
 
 import java.io.PrintWriter
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import javax.crypto.SecretKey
 
+fun main(args: Array<String>){
+    val socket = multiSocket(args[0],
+        port = args[1].toInt(),
+        bootstrap = args.drop(2)
+    )
+    socket.accept(true)
+    while(true){ Thread.sleep(10000); println("Peers: ${socket.peers}")}
+}
+
 var defaultPort = 8080
 var defaultTimeout = 100L
 var defaultDiscovery = true
-var defaultLogger = fun(ex: Exception){ ex.message?.let(::println) }
+var defaultLogger = fun(ex: Exception) = println("[ALERT] ${ex.message}")
 var defaultBootstrap = mutableListOf<String>()
 
 @JvmOverloads
@@ -34,13 +44,28 @@ open class MultiSocket(
     private val connections = mutableListOf<Connection>()
 
     val readyConnections get() = connections.filter{it.ready}
-    val connectionsByTarget get() =
-        readyConnections.associateBy{it.targetName}
+    val connectionsByTarget get() = readyConnections.associateBy{it.targetName}
     fun getConnection(target: String) = connectionsByTarget[target]
 
-    fun accept() = run {server.accept()}
-    fun connect(host: String) = run {Socket(host, port)}
-    fun connect(hosts: List<String>) = hosts.forEach(::connect)
+    @JvmOverloads
+    fun accept(loop: Boolean = false): Unit = run {
+        server.accept().also {
+            if (loop) accept(true)
+        }
+    }
+
+    fun connect(address: String)  {
+        val (host,port) = address.split(":")
+
+        if(host == "127.0.0.1" && port.toInt() == this.port)
+        throw Exception("Trying to connect to self")
+
+        if(connections.any{it.targetAddress==address})
+        throw Exception("Connection already exists")
+
+        run{ Socket(host, port.toInt()) }
+    }
+    fun connect(addresses: List<String>) = addresses.forEach(::connect)
 
     fun log(ex: Exception) = logger(ex)
 
@@ -49,6 +74,7 @@ open class MultiSocket(
         var connection: Connection? = null
         try{
             connection = Connection(this, getter())
+
             this.connections += connection
             this.onConnect.forEach{it(connection)}
             connection.onReady {
@@ -60,7 +86,7 @@ open class MultiSocket(
             if(discovery) connection.discover()
             connection.run()
         }
-        catch(ex: Exception){ log(ex) }
+        catch(ex: Exception){log(ex)}
         finally {
             connection ?: return@Thread
             connection.socket.close()
@@ -83,22 +109,30 @@ open class MultiSocket(
     private val onMessage = mutableListOf<Connection.(jsonMap) -> Unit>()
     fun onMessage(listener: Connection.(jsonMap) -> Unit){ onMessage += listener }
 
-    val peers get() = readyConnections.map { it.socket.remoteSocketAddress.toString() }
+    val peers get() = readyConnections.map{it.targetAddress}
     fun Connection.discover() {
         onReady {
             msg("Discover", jsonMap("peers" to peers))
         }
         onMessage { msg ->
-            if(msg["channel"] == "discover"){
+            if(msg["channel"] == "Discover"){
                 val peers = msg["peers"] as? List<String>
                 ?: throw Exception("Peers is not list of string")
-                connect(peers)
+                try{connect(peers)}
+                catch (ex: Exception){}
             }
         }
     }
 }
 
-class Connection(val parent: MultiSocket, val socket: Socket){
+class Connection(
+    val parent: MultiSocket,
+    val socket: Socket
+){
+
+    val targetHost get() = socket.inetAddress.hostAddress
+    var targetPort: Int = 0; private set
+    val targetAddress get() = "$targetHost:$targetPort"
 
     val thread = Thread.currentThread()
     fun interrupt() = thread.interrupt()
@@ -144,7 +178,8 @@ class Connection(val parent: MultiSocket, val socket: Socket){
         msg("Sockets", jsonMap(
             "status", "pending",
             "key", AES.toString(selfKey),
-            "name", selfName
+            "name", selfName,
+            "port", parent.port
         ))
 
         while(true){
@@ -176,6 +211,9 @@ class Connection(val parent: MultiSocket, val socket: Socket){
 
                 targetName = msg["name"] as? String
                 ?: throw Exception("Name is not a string")
+
+                targetPort = (msg["port"] as? Double)?.toInt()
+                ?: throw Exception("Port is not a number")
 
                 msg("Sockets", jsonMap("status", "ready"))
                 continue
