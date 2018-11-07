@@ -81,7 +81,7 @@ open class MultiSocket(
             this.connections += connection
             onConnect(connection)
             connection.onReady{onReady(connection)}
-            connection.onMessage{msg -> onMessage(connection, msg)}
+            connection.onMessage{msg -> parent.onMessage(connection, msg)}
             if(discovery) connection.discover()
             connection.run()
         }
@@ -184,13 +184,13 @@ class Connection(
         return fromJson(msg)
     }
 
-    private val onReady = mutableListOf<() -> Unit>()
-    fun onReady(listener: () -> Unit) { onReady += listener }
-    private fun onReady() = onReady.forEach{parent.catch(it)}
+    private val onReady = mutableListOf<Connection.() -> Unit>()
+    fun onReady(listener: Connection.() -> Unit) { onReady += listener }
+    private fun onReady() = onReady.forEach{parent.catch{it(this)}}
 
-    private val onMessage = mutableListOf<(jsonMap) -> Unit>()
-    fun onMessage(listener: (jsonMap) -> Unit) { onMessage += listener }
-    private fun onMessage(msg: jsonMap) = onMessage.forEach{parent.catch{it(msg)}}
+    private val onMessage = mutableListOf<Connection.(jsonMap) -> Unit>()
+    fun onMessage(listener: Connection.(jsonMap) -> Unit) { onMessage += listener }
+    private fun onMessage(msg: jsonMap) = onMessage.forEach{parent.catch{it(this, msg)}}
 
     internal fun run() {
 
