@@ -6,16 +6,21 @@
 ### Short example
 
     val bob = multiSocket(
-        name = "Bob",
-        port = 8080,
+        name = "Bob", port = 8080,
         bootstrap = listOf("localhost:8081")
     )
     bob.onReady{
         msg("MyChannel", "What is the answer to life?")
     }
+    bob.accept(true)
 
-    // Client-side
-    client.write("MyChannel", "42")
+    val alice = multiSocket(
+        name = "Alice", port = 8081,
+        bootstrap = listOf("localhost:8080")
+    )
+    alice.onMessage( msg ->
+        if(msg["channel"]
+    )
 
 ### Use it
 

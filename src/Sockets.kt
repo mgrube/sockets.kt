@@ -120,6 +120,9 @@ open class MultiSocket(
     fun onMessage(listener: Connection.(jsonMap) -> Unit){ onMessage += listener }
     private fun onMessage(connection: Connection, msg: jsonMap)
     = onMessage.forEach{catch{it(connection, msg)}}
+    fun onMessage(channel: String, listener: Connection.(jsonMap) -> Unit){
+        onMessage += { if(it["channel"] == channel) listener(it)}
+    }
 
     val peers get() = readyConnections.map{it.targetAddress}
     fun Connection.discover() {
@@ -192,6 +195,9 @@ class Connection(
     private val onMessage = mutableListOf<Connection.(jsonMap) -> Unit>()
     fun onMessage(listener: Connection.(jsonMap) -> Unit) { onMessage += listener }
     private fun onMessage(msg: jsonMap) = onMessage.forEach{parent.catch{it(this, msg)}}
+    fun onMessage(channel: String, listener: Connection.(jsonMap) -> Unit){
+        onMessage += { if(it["channel"] == channel) listener(it)}
+    }
 
     internal fun run() {
 
