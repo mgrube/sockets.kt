@@ -5,22 +5,87 @@
 
 ### Short example
 
+We will use 3 sockets: Bob, Alice and Dave
+
+
+    // ---------- Bob ----------
+
+    // Bob will ask some question to Alice
+    // and print the response
+
+    // Create socket on port 8080
+    // and try to connect to port 8081 (Alice)
     val bob = multiSocket(
         name = "Bob", port = 8080,
         bootstrap = listOf("localhost:8081")
     )
+
+    // When a connection is ready
     bob.onReady{
+        if(²
         msg("MyChannel", "What is the answer to life?")
     }
+
+    // This will be called each time a message is received
+    // no matter the connection
+    bob.onMessage(channel = "MyChannel"){ msg ->
+        val data = msg["data"] as? String
+        println("The answer to life is: $data")
+    }
+
+    // Accept incoming connections
+    // To accept only one connection: bob.accept()
+    // To accept multiple connections: bob.accept(loop = true)
     bob.accept(true)
 
+    // ---------- Alice ----------
+
+    // Alice will receive questions and will answer
+
+    // Create socket on port 8081
+    // and try to connect to 8080 (Bob)
     val alice = multiSocket(
         name = "Alice", port = 8081,
         bootstrap = listOf("localhost:8080")
     )
-    alice.onMessage( msg ->
-        if(msg["channel"]
+
+    // When a message is received on channel "MyChannel"
+    // (no matter the connection)
+    alice.onMessage(channel = "MyChannel") { msg ->
+        if(msg["data"] == "What is the answer to life?")
+        msg("MyChannel", "42")
+    }
+
+    // Accept incoming connections
+    alice.accept(true)
+
+    // ---------- Dave ----------
+
+    // By connecting to Bob, Dave will
+    // automatically connect to Alice.
+    // This feature is called discovery:
+    // peers automatically find each other.
+    // You can disable it by setting
+    // "discovery = false" in multiSocket()
+
+    // Create socket on port 8082
+    // and try to connect to 8080 (Bob)
+    val dave = multiSocket(
+        name = "Dave", port = 8082,
+        bootstrap = listOf("localhost:8080"),
     )
+
+    // When a connection is ready
+    dave.onReady{
+        if(name == "Bob")
+        println("Connected to Bob")
+        if(name == "Alice")
+        println("Connected to Alice")
+    }
+
+    dave.accept(true)
+
+
 
 ### Use it
 

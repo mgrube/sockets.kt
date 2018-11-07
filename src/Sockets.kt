@@ -115,6 +115,9 @@ open class MultiSocket(
     fun onReady(listener: Connection.() -> Unit){ onReady += listener }
     private fun onReady(connection: Connection)
     = onReady.forEach{catch{it(connection)}}
+    fun onReady(target: String, listener: Connection.() -> Unit){
+        onReady += { if(targetName == target) listener() }
+    }
 
     private val onMessage = mutableListOf<Connection.(jsonMap) -> Unit>()
     fun onMessage(listener: Connection.(jsonMap) -> Unit){ onMessage += listener }
