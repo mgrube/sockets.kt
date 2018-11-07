@@ -13,7 +13,7 @@ We will use 3 sockets: Bob, Alice and Dave
     // Bob will ask some question to Alice
     // and print the response
 
-    // Create socket on port 8080
+    // Create a socket on port 8080
     // and try to connect to port 8081 (Alice)
     val bob = multiSocket(
         name = "Bob", port = 8080,
@@ -22,11 +22,14 @@ We will use 3 sockets: Bob, Alice and Dave
 
     // When the connection to Alice is ready
     bob.onReady(target = "Alice"){
+
+        // Ask question to Alice on channel "MyChannel"
         msg("MyChannel", "What is the answer to life?")
 
         // When a message is received over this connection
         // and on the channel "MyChannel"
-        onMessage(channel = "MyChannel"){ msg ->
+        this.onMessage(channel = "MyChannel"){ msg ->
+            // Retrieve message data
             val data = msg["data"] as? String
             println("The answer to life is: $data")
         }
@@ -41,7 +44,7 @@ We will use 3 sockets: Bob, Alice and Dave
 
     // Alice will receive questions and will answer
 
-    // Create socket on port 8081
+    // Create a socket on port 8081
     // and try to connect to 8080 (Bob)
     val alice = multiSocket(
         name = "Alice", port = 8081,
@@ -64,33 +67,26 @@ We will use 3 sockets: Bob, Alice and Dave
     // automatically connect to Alice.
     // This feature is called discovery:
     // peers automatically find each other.
-    // You can disable it by setting
+    // You can disable it by putting
     // "discovery = false" in multiSocket()
 
-    // Create socket on port 8082
+    // Create a socket on port 8082
     // and try to connect to 8080 (Bob)
     val dave = multiSocket(
         name = "Dave", port = 8082,
-        bootstrap = listOf("localhost:8080"),
+        bootstrap = listOf("localhost:8080")
     )
 
-    // When a connection is ready
-    dave.onReady{
-        if(name == "Bob")
+    dave.onReady(target = "Bob"){
         println("Connected to Bob")
-        if(name == "Alice")
+    }
+
+    dave.onReady(target = "Alice"){
         println("Connected to Alice")
+        // msg("MyChannel", "What is the answer to life?")
     }
 
     dave.accept(true)
-
-
-
-### Use it
-
-- [Example in Kotlin](https://github.com/RHazDev/RHazSockets/blob/master/test/KotlinTest.kt)
-
-- [Example in Java](https://github.com/RHazDev/RHazSockets/blob/master/test/JavaTest.java)
 
 ### Implement it
 
