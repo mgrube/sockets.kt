@@ -26,7 +26,7 @@ tasks.withType<KotlinCompile> {
 
 val jar by tasks.getting(Jar::class) {
     manifest {
-        attributes(mapOf("Main-Class" to "fr.rhaz.sockets.SocketsKt"))
+        attributes(mapOf("Main-Class" to "fr.rhaz.sockets.Test"))
     }
     destinationDir = file("$rootDir/jar")
     from(configurations.runtime.map { if (it.isDirectory) it else zipTree(it) })

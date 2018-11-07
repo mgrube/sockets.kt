@@ -19,41 +19,35 @@ object RSA {
 
     fun generate() = KeyPairGenerator.getInstance("RSA").generateKeyPair()
 
-    fun encrypt(data: String, key: PublicKey) = try {
+    fun encrypt(data: String, key: PublicKey) =
         Cipher.getInstance("RSA").run {
             init(Cipher.ENCRYPT_MODE, key)
             B64.to(doFinal(data.toByteArray()))
         }
-    } catch (e: Exception) {null}
 
-    fun decrypt(data: String, key: PrivateKey) = try {
+    fun decrypt(data: String, key: PrivateKey) =
         Cipher.getInstance("RSA").run {
             init(Cipher.DECRYPT_MODE, key)
             String(doFinal(B64.from(data)))
         }
-    } catch (e: Exception) {null}
 
-    @Throws(GeneralSecurityException::class, IOException::class)
     fun loadPrivateKey(key64: String) = B64.from(key64).run {
         KeyFactory.getInstance("RSA")
             .generatePrivate(PKCS8EncodedKeySpec(this))
             .also{Arrays.fill(this, 0.toByte())}
     }
 
-    @Throws(GeneralSecurityException::class, IOException::class)
     fun loadPublicKey(key64: String) = B64.from(key64).run {
         KeyFactory.getInstance("RSA")
             .generatePublic(X509EncodedKeySpec(this))
     }
 
-    @Throws(GeneralSecurityException::class)
     fun savePrivateKey(priv: PrivateKey) = KeyFactory.getInstance("RSA")
         .getKeySpec(priv, PKCS8EncodedKeySpec::class.java)
         .encoded.run{
             B64.to(this).also{Arrays.fill(this, 0.toByte())}
         }
 
-    @Throws(GeneralSecurityException::class)
     fun savePublicKey(publ: PublicKey) = KeyFactory.getInstance("RSA")
         .getKeySpec(publ, X509EncodedKeySpec::class.java)
         .let { B64.to(it.encoded) }
@@ -66,19 +60,17 @@ object AES {
         generateKey()
     }
 
-    fun encrypt(data: String, key: SecretKey) = try {
+    fun encrypt(data: String, key: SecretKey) =
         Cipher.getInstance("AES").run {
             init(Cipher.ENCRYPT_MODE, key)
             B64.to(doFinal(data.toByteArray()))
         }
-    } catch(ex: Exception) {null}
 
-    fun decrypt(data: String, key: SecretKey) = try {
+    fun decrypt(data: String, key: SecretKey) =
         Cipher.getInstance("AES").run {
             init(Cipher.DECRYPT_MODE, key)
             String(doFinal(B64.from(data)))
         }
-    } catch(ex: Exception) {null}
 
     fun toKey(key: String) = B64.from(key).run {
         SecretKeySpec(this, 0, size, "AES")
