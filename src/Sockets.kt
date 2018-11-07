@@ -48,6 +48,8 @@ open class MultiSocket(
     var logger = defaultLogger
     var debug = defaultDebug
 
+    fun interrupt() = connections.forEach{it.interrupt()}
+
     @JvmOverloads
     fun accept(loop: Boolean = false): Unit = run {
         server.accept().also {
