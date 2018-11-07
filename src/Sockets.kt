@@ -170,6 +170,7 @@ class Connection(
     fun encrypt(msg: String) = if(ready) AES.encrypt(msg, selfKey) else msg
     fun decrypt(msg: String) = if(ready) AES.decrypt(msg, targetKey) else msg
 
+    fun msg(channel: String, data: String) = msg(channel, jsonMap("data", data))
     fun msg(channel: String, data: jsonMap){
         data["channel"] = channel
         val msg = encrypt(data.toJson())

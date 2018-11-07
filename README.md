@@ -5,8 +5,14 @@
 
 ### Short example
 
-    // Server-side
-    mess.write("MyChannel", "What is the answer to life?")
+    val bob = multiSocket(
+        name = "Bob",
+        port = 8080,
+        bootstrap = listOf("localhost:8081")
+    )
+    bob.onReady{
+        msg("MyChannel", "What is the answer to life?")
+    }
 
     // Client-side
     client.write("MyChannel", "42")
