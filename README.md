@@ -7,7 +7,7 @@
 
 We will use 3 sockets: Bob, Alice and Dave
 
-
+```kotlin
     // ---------- Bob ----------
 
     // Bob will ask some question to Alice
@@ -87,6 +87,7 @@ We will use 3 sockets: Bob, Alice and Dave
     }
 
     dave.accept(true)
+```
 
 ### Implement it
 
