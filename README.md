@@ -91,10 +91,10 @@ dave.accept(true)
 
 ### Test it
 
-Launch the jar with "bob" "alice" or "dave" as argument
+Launch the [jar](https://github.com/RHazDev/Sockets.kt/tree/master/jar) with "bob" "alice" or "dave" as argument
 
 ```
-java -jar socket-4.0.jar bob
+java -jar sockets-4.0.jar bob
 ```
 
 ### Implement it
