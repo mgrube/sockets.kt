@@ -98,7 +98,7 @@ dave.accept(true)
       }
 
       dependencies {
-          compile("fr.rhaz:sockets:3.0.8")
+          compile("fr.rhaz:sockets:4.0")
       }
 
 - Gradle: add this to your build.gradle
@@ -108,7 +108,7 @@ dave.accept(true)
       }
 
       dependencies {
-          compile 'fr.rhaz:sockets:3.0.8'
+          compile 'fr.rhaz:sockets:4.0'
       }
 
 
@@ -125,7 +125,7 @@ dave.accept(true)
         <dependency>
             <groupId>fr.rhaz</groupId>
             <artifactId>sockets</artifactId>
-            <version>3.0.8</version>
+            <version>4.0</version>
             <scope>compile</scope>
         </dependency>
       </dependencies>
