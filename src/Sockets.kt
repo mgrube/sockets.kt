@@ -13,14 +13,18 @@ fun main(args: Array<String>){
         bootstrap = args.drop(2)
     )
     socket.accept(true)
-    while(true){ Thread.sleep(10000); println("Peers: ${socket.peers}")}
+    while(true){
+        Thread.sleep(10000)
+        println("Peers: ${socket.peers}")
+    }
 }
 
 var defaultPort = 8080
 var defaultTimeout = 100L
 var defaultDiscovery = true
 var defaultLogger = fun(ex: Exception) = println("[ALERT] ${ex.message}")
-var defaultBootstrap = mutableListOf<String>()
+val defaultBootstrap = mutableListOf<String>()
+val selfHosts = mutableListOf("127.0.0.1", "localhost", "0.0.0.0")
 
 @JvmOverloads
 fun multiSocket(
@@ -57,7 +61,7 @@ open class MultiSocket(
     fun connect(address: String)  {
         val (host,port) = address.split(":")
 
-        if(host == "127.0.0.1" && port.toInt() == this.port)
+        if(host in selfHosts && port.toInt() == this.port)
         throw Exception("Trying to connect to self")
 
         if(connections.any{it.targetAddress==address})
@@ -74,15 +78,10 @@ open class MultiSocket(
         var connection: Connection? = null
         try{
             connection = Connection(this, getter())
-
             this.connections += connection
-            this.onConnect.forEach{it(connection)}
-            connection.onReady {
-                this.onReady.forEach{it(connection)}
-            }
-            connection.onMessage { msg ->
-                this.onMessage.forEach{it(connection, msg)}
-            }
+            onConnect(connection)
+            connection.onReady{onReady(connection)}
+            connection.onMessage{msg -> onMessage(connection, msg)}
             if(discovery) connection.discover()
             connection.run()
         }
@@ -92,22 +91,35 @@ open class MultiSocket(
             connection.socket.close()
             connection.interrupt()
             connections.remove(connection)
-            onDisconnect.forEach{it(connection)}
+            onDisconnect(connection)
         }
     }.start()
+
+    inline fun catch(throwable: () -> Unit){
+        try { throwable() }
+        catch(ex: Exception) { log(ex) }
+    }
 
     // Listeners
     private val onConnect = mutableListOf<Connection.() -> Unit>()
     fun onConnect(listener: Connection.() -> Unit){ onConnect += listener }
+    private fun onConnect(connection: Connection)
+    = onConnect.forEach{catch{it(connection)}}
 
     private val onDisconnect = mutableListOf<Connection.() -> Unit>()
     fun onDisconnect(listener: Connection.() -> Unit){ onDisconnect += listener}
+    private fun onDisconnect(connection: Connection)
+    = onDisconnect.forEach{catch{it(connection)}}
 
     private val onReady = mutableListOf<Connection.() -> Unit>()
     fun onReady(listener: Connection.() -> Unit){ onReady += listener }
+    private fun onReady(connection: Connection)
+    = onReady.forEach{catch{it(connection)}}
 
     private val onMessage = mutableListOf<Connection.(jsonMap) -> Unit>()
     fun onMessage(listener: Connection.(jsonMap) -> Unit){ onMessage += listener }
+    private fun onMessage(connection: Connection, msg: jsonMap)
+    = onMessage.forEach{catch{it(connection, msg)}}
 
     val peers get() = readyConnections.map{it.targetAddress}
     fun Connection.discover() {
@@ -148,6 +160,13 @@ class Connection(
     private lateinit var targetKey: SecretKey
     private val selfKey = AES.generate()
 
+    private var selfReady = false
+        set(value) {field = value; if(ready) onReady()}
+    private var targetReady = false
+        set(value) {field = value; if(ready) onReady()}
+
+    val ready get() = selfReady && targetReady
+
     fun encrypt(msg: String) = if(ready) AES.encrypt(msg, selfKey) else msg
     fun decrypt(msg: String) = if(ready) AES.decrypt(msg, targetKey) else msg
 
@@ -165,13 +184,13 @@ class Connection(
         return fromJson(msg)
     }
 
-    var ready = false; private set
-
     private val onReady = mutableListOf<() -> Unit>()
     fun onReady(listener: () -> Unit) { onReady += listener }
+    private fun onReady() = onReady.forEach{parent.catch(it)}
 
     private val onMessage = mutableListOf<(jsonMap) -> Unit>()
     fun onMessage(listener: (jsonMap) -> Unit) { onMessage += listener }
+    private fun onMessage(msg: jsonMap) = onMessage.forEach{parent.catch{it(msg)}}
 
     internal fun run() {
 
@@ -188,7 +207,7 @@ class Connection(
             val msg = read()
 
             if(ready){
-                onMessage.forEach{it(msg)}
+                onMessage(msg)
                 continue
             }
 
@@ -199,8 +218,7 @@ class Connection(
             ?: throw Exception("Unexpected message: $msg")
 
             if(status == "ready"){
-                ready = true
-                onReady.forEach{it()}
+                targetReady = true
                 continue
             }
 
@@ -215,6 +233,7 @@ class Connection(
                 targetPort = (msg["port"] as? Double)?.toInt()
                 ?: throw Exception("Port is not a number")
 
+                selfReady = true
                 msg("Sockets", jsonMap("status", "ready"))
                 continue
             }
