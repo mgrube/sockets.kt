@@ -20,17 +20,16 @@ We will use 3 sockets: Bob, Alice and Dave
         bootstrap = listOf("localhost:8081")
     )
 
-    // When a connection is ready
-    bob.onReady{
-        if(²
+    // When the connection to Alice is ready
+    bob.onReady(target = "Alice"){
         msg("MyChannel", "What is the answer to life?")
-    }
 
-    // This will be called each time a message is received
-    // no matter the connection
-    bob.onMessage(channel = "MyChannel"){ msg ->
-        val data = msg["data"] as? String
-        println("The answer to life is: $data")
+        // When a message is received over this connection
+        // and on the channel "MyChannel"
+        onMessage(channel = "MyChannel"){ msg ->
+            val data = msg["data"] as? String
+            println("The answer to life is: $data")
+        }
     }
 
     // Accept incoming connections

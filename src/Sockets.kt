@@ -158,7 +158,7 @@ class Connection(
     var timeout = parent.timeout
 
     lateinit var targetName: String private set
-    val selfName = parent.name
+    private val selfName = parent.name
 
     private val reader = socket.getInputStream().bufferedReader()
     private val writer = PrintWriter(socket.getOutputStream())
