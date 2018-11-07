@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    compile(kotlin("stdlib-jdk8"))
+    compileOnly(kotlin("stdlib-jdk8"))
     compile("com.google.code.gson:gson:2.8.5")
 }
 
@@ -25,9 +25,6 @@ tasks.withType<KotlinCompile> {
 }
 
 val jar by tasks.getting(Jar::class) {
-    manifest {
-        attributes(mapOf("Main-Class" to "fr.rhaz.sockets.Test"))
-    }
     destinationDir = file("$rootDir/jar")
     from(configurations.runtime.map { if (it.isDirectory) it else zipTree(it) })
     exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
