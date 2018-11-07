@@ -89,6 +89,14 @@ dave.onReady(target = "Alice"){
 dave.accept(true)
 ```
 
+### Test it
+
+Launch the jar with "bob" "alice" or "dave" as argument
+
+```
+java -jar socket-4.0.jar bob
+```
+
 ### Implement it
 
 - Kotlin DSL: add this to your build.gradle.kts
