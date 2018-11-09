@@ -1,3 +1,4 @@
+import fr.rhaz.sockets.defaultDebug
 import fr.rhaz.sockets.multiSocket
 
 lateinit var address: String
@@ -5,6 +6,7 @@ lateinit var address: String
 fun main(args: Array<String>){
     val name = args.elementAtOrNull(0)?.toLowerCase()
     address = args.elementAtOrNull(1) ?: return
+    defaultDebug = { cause, msg -> println("$cause: $msg")}
     when(name){
         "bob" -> bob()
         "alice" -> alice()

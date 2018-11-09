@@ -176,7 +176,7 @@ class Connection(
 
     lateinit var targetName: String private set
     private val selfName = parent.name
-    internal val name get() = if(ready) targetName else selfName
+    internal val name get() = if(ready) "$selfName<->$targetName" else selfName
 
     private val reader = socket.getInputStream().bufferedReader()
     private val writer = PrintWriter(socket.getOutputStream())
@@ -217,10 +217,10 @@ class Connection(
         writer.flush()
     }
 
-    private fun read(): jsonMap {
+    private fun read(): jsonMap? {
         val line = reader.readLine()
         val msg = decrypt(line)
-        return fromJson(msg)
+        return try{ fromJson(msg) } catch(ex: Exception){null}
     }
 
     private val onReady = mutableListOf<Connection.() -> Unit>()
@@ -250,7 +250,7 @@ class Connection(
         while(true){
             delay(timeout)
 
-            val msg = read()
+            val msg = read() ?: continue
             parent.debug(name, "<--- $msg")
 
             if(ready){
