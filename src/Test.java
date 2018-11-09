@@ -8,7 +8,7 @@ import static java.lang.System.out;
 
 public class Test {
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws InterruptedException {
         if(args.length >= 1){
             String name = args[0].toLowerCase();
             switch (name) {
@@ -22,12 +22,13 @@ public class Test {
             out.println("Successfully started");
         }
         else out.println("Available names: bob, alice, dave");
+        Thread.currentThread().join();
     }
 
     public static void bob(){
         List<String> bootstrap = new ArrayList<>();
         bootstrap.add("localhost:8081");
-        MultiSocket bob = SocketsKt.multiSocket("Bob", 8080, bootstrap, "password");
+        MultiSocket bob = SocketsKt.multiSocket("Bob", 8080, bootstrap);
         bob.onReady("Alice", connection -> {
             connection.msg("MyChannel", "What is the answer to life?");
             connection.onMessage("MyChannel", (connection1, msg) -> {

@@ -1,4 +1,4 @@
-package fr.rhaz.sockets
+import fr.rhaz.sockets.multiSocket
 
 fun main(args: Array<String>){
     val name = args.elementAtOrNull(0)?.toLowerCase()
@@ -9,6 +9,7 @@ fun main(args: Array<String>){
         else -> return println("Available names: bob, alice, dave")
     }
     println("Successfully started")
+    Thread.currentThread().join()
 }
 
 fun bob(){
