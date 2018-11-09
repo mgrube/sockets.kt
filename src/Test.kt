@@ -1,7 +1,10 @@
 import fr.rhaz.sockets.multiSocket
 
+lateinit var address: String
+
 fun main(args: Array<String>){
     val name = args.elementAtOrNull(0)?.toLowerCase()
+    address = args.elementAtOrNull(1) ?: return
     when(name){
         "bob" -> bob()
         "alice" -> alice()
@@ -15,7 +18,7 @@ fun main(args: Array<String>){
 fun bob(){
     val bob = multiSocket(
         name = "Bob", port = 8080,
-        bootstrap = listOf("localhost:8081")
+        bootstrap = listOf("$address:8081")
     )
 
     bob.onReady(target = "Alice"){
@@ -32,7 +35,7 @@ fun bob(){
 fun alice(){
     val alice = multiSocket(
         name = "Alice", port = 8081,
-        bootstrap = listOf("localhost:8080")
+        bootstrap = listOf("$address:8080")
     )
 
     alice.onMessage(channel = "MyChannel") { msg ->
@@ -46,7 +49,7 @@ fun alice(){
 fun dave(){
     val dave = multiSocket(
         name = "Dave", port = 8082,
-        bootstrap = listOf("localhost:8080")
+        bootstrap = listOf("$address:8080")
     )
 
     dave.onReady(target = "Bob"){

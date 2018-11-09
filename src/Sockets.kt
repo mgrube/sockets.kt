@@ -6,6 +6,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.PrintWriter
+import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.security.PublicKey
@@ -153,7 +154,7 @@ open class MultiSocket(
                 val peers = msg["peers"] as? List<String>
                 ?: throw Exception("Peers is not list of string")
                 try{connect(peers)}
-                catch (ex: Exception){}
+                catch (ex: Exception){log(name, ex)}
             }
         }
     }
