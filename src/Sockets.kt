@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.io.PrintWriter
 import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.security.PublicKey
@@ -67,6 +68,9 @@ open class MultiSocket(
 
     fun connect(address: String) {
         val (host,port) = address.split(":")
+
+        if(NetworkInterface.getByName(host) != null && port.toInt() == this.port)
+        throw Exception("Trying to connect to self")
 
         if(host in selfHosts && port.toInt() == this.port)
         throw Exception("Trying to connect to self")
@@ -144,10 +148,10 @@ open class MultiSocket(
     fun onMessage(channel: String, listener: BiConsumer<Connection, jsonMap>)
             = onMessage(channel){listener.accept(this, it)}
 
-    val peers get() = readyConnections.map{it.targetAddress}
+    val peers get() = readyConnections.associateBy{it.targetAddress}
     fun Connection.discover() {
         onReady {
-            msg("Discover", jsonMap("peers" to peers))
+            msg("Discover", jsonMap("peers" to peers.filter{it.value != this}.keys))
         }
         onMessage { msg ->
             if(msg["channel"] == "Discover"){
