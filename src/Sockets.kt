@@ -3,7 +3,6 @@ package fr.rhaz.sockets
 
 import kotlinx.coroutines.*
 import java.io.PrintWriter
-import java.net.InetAddress
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
@@ -24,6 +23,16 @@ var defaultLogger = fun(cause: String, ex: Exception) = println("[ALERT] $cause:
 var defaultDebug = fun(cause: String, msg: String){}
 val defaultBootstrap = mutableListOf<String>()
 val selfHosts = mutableListOf("127.0.0.1", "localhost", "0.0.0.0")
+
+fun String.replaceAll(
+    values: List<String>,
+    replacement: String
+): String {
+    var str = this
+    for(old in values)
+        str = str.replace(old, replacement)
+    return str
+}
 
 @JvmOverloads
 fun multiSocket(
@@ -157,8 +166,11 @@ open class MultiSocket(
         }
         onMessage { msg ->
             if(msg["channel"] == "Discover"){
-                val peers = msg["peers"] as? List<String>
+                var peers = msg["peers"] as? List<String>
                 ?: throw Exception("Peers is not list of string")
+                peers = peers.map { peer -> peer.replaceAll(selfHosts, targetHost) }
+                println(targetHost)
+                println(peers)
                 try{connect(peers)}
                 catch (ex: Exception){log(name, ex)}
             }
