@@ -61,8 +61,8 @@ open class MultiSocket(
     private val connections = mutableListOf<Connection>()
 
     val readyConnections get() = connections.filter{it.ready}
-    val connectionsByTarget get() = readyConnections.associateBy{it.targetName}
-    fun getConnection(target: String) = connectionsByTarget[target]
+    val connectionsByTarget get() = readyConnections.associateBy{it.targetName.toLowerCase()}
+    fun getConnection(target: String) = connectionsByTarget[target.toLowerCase()]
 
     var logger = defaultLogger
     fun log(cause: String, ex: Exception) = logger(cause, ex)
@@ -171,9 +171,8 @@ open class MultiSocket(
             if(msg["channel"] == "Discover"){
                 var peers = msg["peers"] as? List<String>
                 ?: throw Exception("peers is not a list of string")
+                if(targetHost !in selfHosts)
                 peers = peers.map { peer -> peer.replaceAll(selfHosts, targetHost) }
-                println(targetHost)
-                println(peers)
                 try{connect(peers)}
                 catch (ex: Exception){log(name, ex)}
             }
@@ -312,19 +311,31 @@ class Connection(
             }
 
             if(status == "pending"){
-                targetName = msg["name"] as? String
-                ?: throw Exception("Name is not a string")
-
-                targetPort = (msg["port"] as? Double)?.toInt()
-                ?: throw Exception("Port is not a number")
 
                 val password = msg["password"] as? String
                 ?: throw Exception("Password is not a string")
-                if(password != parent.password)
-                msg("Sockets", jsonMap(
-                    "status" to "error",
-                    "data" to "Bad password"
-                ))
+
+                if(password != parent.password){
+                    msg("Sockets", jsonMap(
+                        "status" to "error",
+                        "data" to "Bad password"
+                    ))
+                    continue
+                }
+
+                targetName = msg["name"] as? String
+                ?: throw Exception("Name is not a string")
+
+                if(parent.getConnection(targetName) != null){
+                    msg("Sockets", jsonMap(
+                        "status" to "error",
+                        "data" to "Name already registered"
+                    ))
+                    continue
+                }
+
+                targetPort = (msg["port"] as? Double)?.toInt()
+                ?: throw Exception("Port is not a number")
 
                 selfReady = true
                 msg("Sockets", jsonMap("status" to "ready"))
