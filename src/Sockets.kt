@@ -55,7 +55,7 @@ open class MultiSocket(
 
     val job = Job()
     override val coroutineContext: CoroutineContext
-    get() = Dispatchers.Default + job
+    get() = Dispatchers.IO + job
 
     private val server = ServerSocket(port)
     private val connections = mutableListOf<Connection>()
@@ -102,8 +102,6 @@ open class MultiSocket(
             connection.job = process(connection)
         } catch (ex: Exception){log(name, ex)}
     }
-
-    val thread get() = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
 
     // Run a connection
     private fun process(connection: Connection) = launch{
