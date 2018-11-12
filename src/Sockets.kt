@@ -7,7 +7,6 @@ import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.security.PublicKey
-import java.util.concurrent.Executors
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 import javax.crypto.SecretKey
@@ -115,9 +114,9 @@ open class MultiSocket(
         }
         catch(ex: Exception){ log(connection.name, ex) }
         finally {
-            connection.interrupt()
             connections.remove(connection)
             onDisconnect(connection)
+            connection.interrupt()
         }
     }
 
