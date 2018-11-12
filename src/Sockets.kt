@@ -1,24 +1,39 @@
 
 package fr.rhaz.sockets
 
+import kotlinx.coroutines.*
 import java.io.PrintWriter
 import java.net.InetAddress
+import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
-import java.security.KeyPair
 import java.security.PublicKey
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 import javax.crypto.SecretKey
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.set
+import kotlin.coroutines.CoroutineContext
 
 var defaultPort = 8080
 var defaultPassword = ""
 var defaultTimeout = 100L
 var defaultDiscovery = true
-var defaultLogger = fun(ex: Exception) = println("[ALERT] ${ex.message}")
-var defaultDebug = fun(msg: String){}
+var defaultLogger = fun(cause: String, ex: Exception) = println("[ALERT] $cause: ${ex.message}")
+var defaultDebug = fun(cause: String, msg: String){}
 val defaultBootstrap = mutableListOf<String>()
 val selfHosts = mutableListOf("127.0.0.1", "localhost", "0.0.0.0")
+
+fun String.replaceAll(
+    values: List<String>,
+    replacement: String
+): String {
+    var str = this
+    for(old in values)
+        str = str.replace(old, replacement)
+    return str
+}
 
 @JvmOverloads
 fun multiSocket(
@@ -36,67 +51,80 @@ open class MultiSocket(
     val password: String,
     var timeout: Long,
     var discovery: Boolean
-){
+): CoroutineScope {
+
+    val job = Job()
+    override val coroutineContext: CoroutineContext
+    get() = Dispatchers.IO + job
 
     private val server = ServerSocket(port)
     private val connections = mutableListOf<Connection>()
 
     val readyConnections get() = connections.filter{it.ready}
-    val connectionsByTarget get() = readyConnections.associateBy{it.targetName}
-    fun getConnection(target: String) = connectionsByTarget[target]
+    val connectionsByTarget get() = readyConnections.associateBy{it.targetName.toLowerCase()}
+    fun getConnection(target: String) = connectionsByTarget[target.toLowerCase()]
 
     var logger = defaultLogger
+    fun log(cause: String, ex: Exception) = logger(cause, ex)
+
     var debug = defaultDebug
 
-    fun interrupt() = connections.forEach{it.interrupt()}
+    fun interrupt() = job.cancel()
 
     @JvmOverloads
-    fun accept(loop: Boolean = false): Unit = run {
-        server.accept().also {
-            if (loop) accept(true)
-        }
+    fun accept(loop: Boolean = false): Job = launch {
+        do {
+            get { server.accept() }.join()
+        } while (loop)
     }
 
-    fun connect(address: String)  {
-        val (host,port) = address.split(":")
+    fun local(host: String) = NetworkInterface.getByInetAddress(InetAddress.getByName(host))
+
+    fun connect(address: String) {
+        var (host,port) = address.split(":")
+
+        if(local(host) != null) host = "127.0.0.1"
 
         if(host in selfHosts && port.toInt() == this.port)
         throw Exception("Trying to connect to self")
 
-        if(connections.any{it.targetAddress==address})
+        if(connections.any{it.targetHost==host && it.targetPort == port.toInt()})
         throw Exception("Connection already exists")
 
-        run{ Socket(host, port.toInt()) }
+        get{ Socket(host, port.toInt()) }
     }
-    fun connect(addresses: List<String>) = addresses.forEach(::connect)
 
-    fun log(ex: Exception) = logger(ex)
+    fun connect(addresses: List<String>) = addresses.map{connect(it)}
+
+    // Get a connection
+    private fun get(getter: () -> Socket) = launch {
+        try{
+            val connection = Connection(this@MultiSocket, getter())
+            connection.job = process(connection)
+        } catch (ex: Exception){log(name, ex)}
+    }
 
     // Run a connection
-    private fun run(getter: () -> Socket) = Thread{
-        var connection: Connection? = null
+    private fun process(connection: Connection) = launch{
         try{
-            connection = Connection(this, getter())
-            this.connections += connection
+            connections += connection
             onConnect(connection)
             connection.onReady{onReady(connection)}
             connection.onMessage{msg -> parent.onMessage(connection, msg)}
             if(discovery) connection.discover()
             connection.run()
         }
-        catch(ex: Exception){log(ex)}
+        catch(ex: Exception){ log(connection.name, ex) }
         finally {
-            connection ?: return@Thread
-            connection.socket.close()
-            connection.interrupt()
             connections.remove(connection)
             onDisconnect(connection)
+            connection.interrupt()
         }
-    }.start()
+    }
 
     inline fun catch(throwable: () -> Unit){
         try { throwable() }
-        catch(ex: Exception) { log(ex) }
+        catch(ex: Exception) { log(name, ex) }
     }
 
     // Listeners
@@ -118,32 +146,34 @@ open class MultiSocket(
     fun onReady(listener: Connection.() -> Unit) { onReady += listener }
     fun onReady(listener: Consumer<Connection>) = onReady{listener.accept(this)}
     fun onReady(target: String, listener: Connection.() -> Unit)
-        { onReady += { if(targetName == target) listener() } }
+    { onReady += { if(targetName == target) listener() } }
     fun onReady(target: String, listener: Consumer<Connection>)
-        = onReady(target){listener.accept(this)}
+            = onReady(target){listener.accept(this)}
 
     private val onMessage = mutableListOf<Connection.(jsonMap) -> Unit>()
     private fun onMessage(connection: Connection, msg: jsonMap)
-        = onMessage.forEach{catch{it(connection, msg)}}
+            = onMessage.forEach{catch{it(connection, msg)}}
 
     fun onMessage(listener: Connection.(jsonMap) -> Unit) { onMessage += listener }
     fun onMessage(listener: BiConsumer<Connection, jsonMap>) = onMessage{listener.accept(this, it)}
     fun onMessage(channel: String, listener: Connection.(jsonMap) -> Unit)
-        { onMessage += { if(it["channel"] == channel) listener(it)}}
+    { onMessage += { if(it["channel"] == channel) listener(it)}}
     fun onMessage(channel: String, listener: BiConsumer<Connection, jsonMap>)
-        = onMessage(channel){listener.accept(this, it)}
+            = onMessage(channel){listener.accept(this, it)}
 
-    val peers get() = readyConnections.map{it.targetAddress}
+    val peers get() = readyConnections.associateBy{it.targetAddress}
     fun Connection.discover() {
         onReady {
-            msg("Discover", jsonMap("peers" to peers))
+            msg("Discover", jsonMap("peers" to peers.filter{it.value != this}.keys))
         }
         onMessage { msg ->
             if(msg["channel"] == "Discover"){
-                val peers = msg["peers"] as? List<String>
-                ?: throw Exception("Peers is not list of string")
+                var peers = msg["peers"] as? List<String>
+                ?: throw Exception("peers is not a list of string")
+                if(targetHost !in selfHosts)
+                peers = peers.map { peer -> peer.replaceAll(selfHosts, targetHost) }
                 try{connect(peers)}
-                catch (ex: Exception){}
+                catch (ex: Exception){log(name, ex)}
             }
         }
     }
@@ -158,13 +188,14 @@ class Connection(
     var targetPort: Int = 0; private set
     val targetAddress get() = "$targetHost:$targetPort"
 
-    val thread = Thread.currentThread()
-    fun interrupt() = thread.interrupt()
+    lateinit var job: Job; internal set
+    fun interrupt() = job.cancel()
 
     var timeout = parent.timeout
 
     lateinit var targetName: String private set
     private val selfName = parent.name
+    internal val name get() = if(ready) "$selfName<->$targetName" else selfName
 
     private val reader = socket.getInputStream().bufferedReader()
     private val writer = PrintWriter(socket.getOutputStream())
@@ -199,16 +230,16 @@ class Connection(
     fun msg(channel: String, data: String) = msg(channel, jsonMap("data", data))
     fun msg(channel: String, data: jsonMap){
         data["channel"] = channel
-        parent.debug("--> $data")
+        parent.debug(name, "--> $data")
         val msg = encrypt(data.toJson())
         writer.println(msg)
         writer.flush()
     }
 
-    private fun read(): jsonMap {
+    private fun read(): jsonMap? {
         val line = reader.readLine()
         val msg = decrypt(line)
-        return fromJson(msg)
+        return try{ fromJson(msg) } catch(ex: Exception){null}
     }
 
     private val onReady = mutableListOf<Connection.() -> Unit>()
@@ -228,7 +259,7 @@ class Connection(
         = onMessage(channel){listener.accept(this, it)}
 
 
-    internal fun run() {
+    internal suspend fun run() {
 
         msg("Sockets", jsonMap(
             "status" to "rsa",
@@ -236,10 +267,10 @@ class Connection(
         ))
 
         while(true){
-            Thread.sleep(timeout)
+            delay(timeout)
 
-            val msg = read()
-            parent.debug("<--- $msg")
+            val msg = read() ?: throw Exception("Could not read line")
+            parent.debug(name, "<-- $msg")
 
             if(ready){
                 onMessage(msg)
@@ -279,19 +310,31 @@ class Connection(
             }
 
             if(status == "pending"){
-                targetName = msg["name"] as? String
-                ?: throw Exception("Name is not a string")
-
-                targetPort = (msg["port"] as? Double)?.toInt()
-                ?: throw Exception("Port is not a number")
 
                 val password = msg["password"] as? String
                 ?: throw Exception("Password is not a string")
-                if(password != parent.password)
-                msg("Sockets", jsonMap(
-                    "status" to "error",
-                    "data" to "Bad password"
-                ))
+
+                if(password != parent.password){
+                    msg("Sockets", jsonMap(
+                        "status" to "error",
+                        "data" to "Bad password"
+                    ))
+                    continue
+                }
+
+                targetName = msg["name"] as? String
+                ?: throw Exception("Name is not a string")
+
+                if(parent.getConnection(targetName) != null){
+                    msg("Sockets", jsonMap(
+                        "status" to "error",
+                        "data" to "Name already registered"
+                    ))
+                    continue
+                }
+
+                targetPort = (msg["port"] as? Double)?.toInt()
+                ?: throw Exception("Port is not a number")
 
                 selfReady = true
                 msg("Sockets", jsonMap("status" to "ready"))

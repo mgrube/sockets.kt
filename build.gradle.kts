@@ -4,12 +4,12 @@ import java.io.FileInputStream
 import org.gradle.api.tasks.bundling.Jar
 
 plugins {
-    kotlin("jvm") version "1.2.60"
+    kotlin("jvm") version "1.3.0"
     `maven-publish`
 }
 
 group = "fr.rhaz"
-version = "4.0"
+version = "4.0.1"
 
 repositories {
     mavenCentral()
@@ -17,6 +17,7 @@ repositories {
 
 dependencies {
     compileOnly(kotlin("stdlib-jdk8"))
+    compileOnly("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.0.1")
     compile("com.google.code.gson:gson:2.8.5")
 }
 
@@ -25,6 +26,9 @@ tasks.withType<KotlinCompile> {
 }
 
 val jar by tasks.getting(Jar::class) {
+    manifest{
+        attributes(mapOf("Main-Class" to "TestKt"))
+    }
     destinationDir = file("$rootDir/jar")
     from(configurations.runtime.map { if (it.isDirectory) it else zipTree(it) })
     exclude("META-INF/*.RSA", "META-INF/*.SF", "META-INF/*.DSA")
