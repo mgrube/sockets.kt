@@ -329,7 +329,7 @@ class Connection(
                 if(parent.getConnection(targetName) != null){
                     msg("Sockets", jsonMap(
                         "status" to "error",
-                        "data" to "Name already registered"
+                        "data" to "Name $targetName is already registered"
                     ))
                     continue
                 }
