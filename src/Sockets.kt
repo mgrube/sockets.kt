@@ -71,7 +71,7 @@ open class MultiSocket(
     fun interrupt() = job.cancel()
 
     @JvmOverloads
-    fun accept(loop: Boolean = false): Job = GlobalScope.launch {
+    fun accept(loop: Boolean = false): Job = launch {
         do {
             get { server.accept() }.join()
         } while (loop)
