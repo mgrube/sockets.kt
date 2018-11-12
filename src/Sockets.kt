@@ -106,7 +106,7 @@ open class MultiSocket(
     val thread get() = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
 
     // Run a connection
-    private fun process(connection: Connection) = launch(thread){
+    private fun process(connection: Connection) = launch{
         try{
             connections += connection
             onConnect(connection)
