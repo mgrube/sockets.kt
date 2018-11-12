@@ -7,6 +7,7 @@ import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
 import java.security.PublicKey
+import java.util.concurrent.Executors
 import java.util.function.BiConsumer
 import java.util.function.Consumer
 import javax.crypto.SecretKey
@@ -102,8 +103,10 @@ open class MultiSocket(
         } catch (ex: Exception){log(name, ex)}
     }
 
+    val thread get() = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+
     // Run a connection
-    private fun process(connection: Connection) = launch{
+    private fun process(connection: Connection) = launch(thread){
         try{
             connections += connection
             onConnect(connection)
@@ -167,7 +170,7 @@ open class MultiSocket(
         onMessage { msg ->
             if(msg["channel"] == "Discover"){
                 var peers = msg["peers"] as? List<String>
-                ?: throw Exception("Peers is not list of string")
+                ?: throw Exception("peers is not a list of string")
                 peers = peers.map { peer -> peer.replaceAll(selfHosts, targetHost) }
                 println(targetHost)
                 println(peers)
@@ -266,9 +269,9 @@ class Connection(
         ))
 
         while(true){
-            //delay(timeout)
+            delay(timeout)
 
-            val msg = read() ?: throw Exception("Could not read")
+            val msg = read() ?: throw Exception("Could not read line")
             parent.debug(name, "<-- $msg")
 
             if(ready){
