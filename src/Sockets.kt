@@ -3,6 +3,7 @@ package fr.rhaz.sockets
 
 import kotlinx.coroutines.*
 import java.io.PrintWriter
+import java.net.InetAddress
 import java.net.NetworkInterface
 import java.net.ServerSocket
 import java.net.Socket
@@ -77,16 +78,17 @@ open class MultiSocket(
         } while (loop)
     }
 
-    fun connect(address: String) {
-        val (host,port) = address.split(":")
+    fun local(host: String) = NetworkInterface.getByInetAddress(InetAddress.getByName(host))
 
-        if(NetworkInterface.getByName(host) != null && port.toInt() == this.port)
-        throw Exception("Trying to connect to self")
+    fun connect(address: String) {
+        var (host,port) = address.split(":")
+
+        if(local(host) != null) host = "127.0.0.1"
 
         if(host in selfHosts && port.toInt() == this.port)
         throw Exception("Trying to connect to self")
 
-        if(connections.any{it.targetAddress==address})
+        if(connections.any{it.targetHost==host && it.targetPort == port.toInt()})
         throw Exception("Connection already exists")
 
         get{ Socket(host, port.toInt()) }
@@ -326,7 +328,7 @@ class Connection(
                 if(parent.getConnection(targetName) != null){
                     msg("Sockets", jsonMap(
                         "status" to "error",
-                        "data" to "Name $targetName is already registered"
+                        "data" to "Name already registered"
                     ))
                     continue
                 }
