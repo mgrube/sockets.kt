@@ -95,7 +95,7 @@ open class MultiSocket(
     fun connect(addresses: List<String>) = addresses.map{connect(it)}
 
     // Get a connection
-    private fun get(getter: () -> Socket) = launch(newSingleThreadContext("")) {
+    private fun get(getter: () -> Socket) = launch {
         try{
             val connection = Connection(this@MultiSocket, getter())
             connection.job = process(connection)
@@ -266,10 +266,10 @@ class Connection(
         ))
 
         while(true){
-            delay(timeout)
+            //delay(timeout)
 
-            val msg = read() ?: continue
-            parent.debug(name, "<--- $msg")
+            val msg = read() ?: throw Exception("Could not read")
+            parent.debug(name, "<-- $msg")
 
             if(ready){
                 onMessage(msg)
