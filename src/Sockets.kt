@@ -1,10 +1,7 @@
 
 package fr.rhaz.sockets
 
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.*
 import java.io.PrintWriter
 import java.net.InetAddress
 import java.net.NetworkInterface
@@ -17,6 +14,7 @@ import javax.crypto.SecretKey
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.collections.set
+import kotlin.coroutines.CoroutineContext
 
 var defaultPort = 8080
 var defaultPassword = ""
@@ -43,7 +41,11 @@ open class MultiSocket(
     val password: String,
     var timeout: Long,
     var discovery: Boolean
-){
+): CoroutineScope {
+
+    val job = Job()
+    override val coroutineContext: CoroutineContext
+    get() = Dispatchers.Default + job
 
     private val server = ServerSocket(port)
     private val connections = mutableListOf<Connection>()
@@ -57,7 +59,7 @@ open class MultiSocket(
 
     var debug = defaultDebug
 
-    fun interrupt() = connections.forEach{it.interrupt()}
+    fun interrupt() = job.cancel()
 
     @JvmOverloads
     fun accept(loop: Boolean = false): Job = GlobalScope.launch {
@@ -84,7 +86,7 @@ open class MultiSocket(
     fun connect(addresses: List<String>) = addresses.map{connect(it)}
 
     // Get a connection
-    private fun get(getter: () -> Socket) = GlobalScope.launch {
+    private fun get(getter: () -> Socket) = launch {
         try{
             val connection = Connection(this@MultiSocket, getter())
             connection.job = process(connection)
@@ -92,7 +94,7 @@ open class MultiSocket(
     }
 
     // Run a connection
-    private fun process(connection: Connection) = GlobalScope.launch{
+    private fun process(connection: Connection) = launch{
         try{
             connections += connection
             onConnect(connection)
